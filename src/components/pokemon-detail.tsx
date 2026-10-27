@@ -534,6 +534,8 @@ export function MovesTable({ moves, game }: { moves: LegalMove[]; game: GameId }
               <th>Categoria</th>
               <th>Poder</th>
               <th>{game === 'za' ? 'Cooldown' : 'PP'}</th>
+              {game === 'za' && <th>Alcance</th>}
+              {game === 'za' && <th>Área</th>}
               <th>Precisão</th>
               <th>Como aprender</th>
               <th>Fonte</th>
@@ -560,6 +562,8 @@ export function MovesTable({ moves, game }: { moves: LegalMove[]; game: GameId }
                 <td>
                   {game === 'za' ? (m.cooldown === null ? '?' : `${m.cooldown} s`) : (m.pp ?? '?')}
                 </td>
+                {game === 'za' && <td>{m.range ?? (m.verified ? '—' : '?')}</td>}
+                {game === 'za' && <td>{m.area ?? (m.verified ? '—' : '?')}</td>}
                 <td>
                   {game === 'za'
                     ? 'Não aplicável'
@@ -891,6 +895,12 @@ export function BuildWorkbench({ detail, saved }: { detail: PokemonDetail; saved
                   {recommendation.explanations.find((e) => e.startsWith(`${m.name}:`)) ??
                     `Movimento legal selecionado manualmente. ${m.category === 'status' ? 'Utilidade situacional.' : `Usa ${m.category === 'physical' ? 'Attack' : 'Special Attack'}.`}`}
                 </p>
+                {game === 'za' && (
+                  <p className="move-spatial-data">
+                    Alcance: {m.range ?? 'não informado'} · Área: {m.area ?? 'não informada'} ·
+                    Cooldown: {m.cooldown === null ? 'não informado' : `${m.cooldown} s`}
+                  </p>
+                )}
                 <small>
                   {m.methods
                     .map((x) => `${methodLabel(x.method)}${x.level ? ` · Nv. ${x.level}` : ''}`)
@@ -949,7 +959,11 @@ export function BuildWorkbench({ detail, saved }: { detail: PokemonDetail; saved
               <div className="alternative-move" key={m.id}>
                 <TypeBadge type={m.type} />
                 <span>{m.name}</span>
-                <small>{m.category === 'status' ? 'Status' : (m.power ?? 'Poder ?')}</small>
+                <small>
+                  {m.category === 'status' ? 'Status' : (m.power ?? 'Poder ?')}
+                  {game === 'za' && ` · ${m.cooldown === null ? '? s' : `${m.cooldown} s`}`}
+                  {game === 'za' && m.range && ` · ${m.range}`}
+                </small>
               </div>
             ))}
           </section>

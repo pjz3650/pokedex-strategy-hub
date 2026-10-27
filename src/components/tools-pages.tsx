@@ -6,13 +6,14 @@ import {
   ArrowRight,
   ArrowUpRight,
   BookOpen,
-  GitCompareArrows,
   LoaderCircle,
   MessageSquare,
+  Plus,
   Send,
   ShieldCheck,
   Sparkles,
   Trash2,
+  X,
 } from 'lucide-react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
@@ -130,35 +131,78 @@ export function Analyzer({ builds = false }: { builds?: boolean }) {
 export function Comparator() {
   const { catalog, game } = useHub();
   const params = useSearchParams();
-  const [left, setLeft] = useState(Number(params.get('pokemon')) || 448);
-  const [right, setRight] = useState(282);
+  const [ids, setIds] = useState(() => [Number(params.get('pokemon')) || 448, 282]);
   const pool = catalog.filter((p) => canUse(p, game));
-  const a = pool.find((p) => p.id === left) ?? pool[0];
-  const b = pool.find((p) => p.id === right) ?? pool[1];
-  if (!a || !b)
+  useEffect(() => {
+    setIds((current) => {
+      const eligible = catalog.filter((p) => canUse(p, game));
+      const next = current.filter(
+        (id, index) => eligible.some((p) => p.id === id) && current.indexOf(id) === index,
+      );
+      for (const pokemon of eligible) {
+        if (next.length >= Math.min(2, eligible.length)) break;
+        if (!next.includes(pokemon.id)) next.push(pokemon.id);
+      }
+      return next.slice(0, 4);
+    });
+  }, [game, catalog]);
+  const chosen = ids
+    .map((id) => pool.find((p) => p.id === id))
+    .filter((p): p is Pokemon => !!p)
+    .filter((p, index, values) => values.findIndex((candidate) => candidate.id === p.id) === index);
+  for (const candidate of pool) {
+    if (chosen.length >= Math.min(2, pool.length)) break;
+    if (!chosen.some((p) => p.id === candidate.id)) chosen.push(candidate);
+  }
+  if (chosen.length < 2)
     return (
       <EmptyState
         title="Dados insuficientes para comparar"
         text="Importe os dados e selecione um jogo com pelo menos dois Pokémon disponíveis."
       />
     );
-  const defs = [a, b].map((p) => defenseProfile(p, game));
+  const defs = chosen.map((p) => defenseProfile(p, game));
+  const setId = (index: number, id: number) =>
+    setIds((current) => current.map((value, i) => (i === index ? id : value)));
+  const addPokemon = () => {
+    const next = pool.find((p) => !chosen.some((selected) => selected.id === p.id));
+    if (next) setIds((current) => [...current, next.id]);
+  };
   return (
     <div>
       <PageHeading
         eyebrow="LADO A LADO"
-        title="Duas escolhas. Contextos diferentes."
-        text="Compare atributos e respostas defensivas, sem um vencedor universal."
+        title="Compare até quatro escolhas."
+        text="Atributos e respostas defensivas no contexto do jogo selecionado, sem um vencedor universal."
       />
       <div className="comparator-controls">
-        <PokemonPicker value={a.id} onChange={setLeft} label="Primeiro Pokémon" />
-        <span className="compare-symbol">
-          <GitCompareArrows size={23} />
-        </span>
-        <PokemonPicker value={b.id} onChange={setRight} label="Segundo Pokémon" />
+        {chosen.map((pokemon, index) => (
+          <div className="compare-picker" key={index}>
+            <PokemonPicker
+              value={pokemon.id}
+              onChange={(id) => setId(index, id)}
+              label={`Pokémon ${index + 1}`}
+              exclude={chosen.filter((_, i) => i !== index).map((p) => p.id)}
+            />
+            {chosen.length > 2 && (
+              <button
+                className="icon-button compare-remove"
+                aria-label={`Remover ${pokemon.name} da comparação`}
+                onClick={() => setIds((current) => current.filter((_, i) => i !== index))}
+              >
+                <X size={16} />
+              </button>
+            )}
+          </div>
+        ))}
+        {chosen.length < 4 && chosen.length < pool.length && (
+          <Button variant="secondary" className="compare-add" onClick={addPokemon}>
+            <Plus size={16} /> Adicionar Pokémon
+          </Button>
+        )}
       </div>
       <div className="compare-cards">
-        {[a, b].map((p, i) => (
+        {chosen.map((p, i) => (
           <section className="panel compare-card" key={i}>
             <span className="dex-number">#{String(p.speciesId).padStart(4, '0')}</span>
             <PokemonImage key={p.id} pokemon={p} size={210} />
@@ -171,7 +215,12 @@ export function Comparator() {
             <p>
               {role(p)} · BST {bst(p.stats)}
             </p>
-            <StatBars stats={p.stats} compare={i === 0 ? b.stats : a.stats} />
+            <StatBars
+              stats={p.stats}
+              compare={
+                chosen.length === 2 ? (i === 0 ? chosen[1].stats : chosen[0].stats) : undefined
+              }
+            />
             <Link className="text-link" href={`/pokemon/${p.id}?game=${game}`}>
               Consultar movimentos e builds <ArrowUpRight size={14} />
             </Link>
@@ -180,25 +229,83 @@ export function Comparator() {
       </div>
       <div className="two-column">
         <section className="panel">
-          <SectionHeading title="Atributos sobrepostos" />
-          <StatsRadar stats={a.stats} other={b.stats} />
+          <SectionHeading
+            title="Atributos sobrepostos"
+            caption="Visualização dos dois primeiros selecionados."
+          />
+          <StatsRadar stats={chosen[0].stats} other={chosen[1].stats} />
         </section>
         <section className="panel">
           <SectionHeading title="O que muda para sua equipe" />
-          <p className="body-copy">
-            <b>{a.name}</b> apresenta {role(a).toLowerCase()}, com {a.stats.speed} de Speed base e{' '}
-            {Math.max(a.stats.attack, a.stats.specialAttack)} na maior estatística ofensiva.
-          </p>
-          <p className="body-copy">
-            <b>{b.name}</b> apresenta {role(b).toLowerCase()}, com {b.stats.speed} de Speed base e{' '}
-            {Math.max(b.stats.attack, b.stats.specialAttack)} na maior estatística ofensiva.
-          </p>
+          {chosen.map((p) => (
+            <p className="body-copy" key={p.id}>
+              <b>{p.name}</b> apresenta {role(p).toLowerCase()}, com {p.stats.speed} de Speed base e{' '}
+              {Math.max(p.stats.attack, p.stats.specialAttack)} na maior estatística ofensiva.
+            </p>
+          ))}
           <Notice>
             A escolha depende das fraquezas e funções que sua equipe precisa cobrir. Atributos base
             não substituem a avaliação dos movimentos, da obtenção e das regras do jogo.
           </Notice>
         </section>
       </div>
+      <section className="panel">
+        <SectionHeading
+          title="Atributos comparados"
+          caption="Valores base próprios do jogo selecionado."
+        />
+        <div
+          className="table-scroll"
+          tabIndex={0}
+          role="region"
+          aria-label="Atributos dos Pokémon comparados"
+        >
+          <table className="data-table">
+            <thead>
+              <tr>
+                <th>Atributo base</th>
+                {chosen.map((p) => (
+                  <th key={p.id}>{p.name}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {(
+                [
+                  ['HP', 'hp'],
+                  ['Attack', 'attack'],
+                  ['Defense', 'defense'],
+                  ['Sp. Attack', 'specialAttack'],
+                  ['Sp. Defense', 'specialDefense'],
+                  ['Speed', 'speed'],
+                ] as const
+              ).map(([label, key]) => {
+                const max = Math.max(...chosen.map((p) => p.stats[key]));
+                return (
+                  <tr key={key}>
+                    <td>{label}</td>
+                    {chosen.map((p) => (
+                      <td key={p.id}>
+                        <b className={p.stats[key] === max ? 'compare-best' : undefined}>
+                          {p.stats[key]}
+                        </b>
+                      </td>
+                    ))}
+                  </tr>
+                );
+              })}
+              <tr>
+                <td>BST</td>
+                {chosen.map((p) => (
+                  <td key={p.id}>
+                    <b>{bst(p.stats)}</b>
+                  </td>
+                ))}
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
       <section className="panel">
         <SectionHeading
           title="Efetividade defensiva comparada"
@@ -214,8 +321,9 @@ export function Comparator() {
             <thead>
               <tr>
                 <th>Tipo do ataque</th>
-                <th>{a.name}</th>
-                <th>{b.name}</th>
+                {chosen.map((p) => (
+                  <th key={p.id}>{p.name}</th>
+                ))}
               </tr>
             </thead>
             <tbody>
@@ -224,8 +332,9 @@ export function Comparator() {
                   <td>
                     <TypeBadge type={t} />
                   </td>
-                  <td>{defs[0][i].multiplier}×</td>
-                  <td>{defs[1][i].multiplier}×</td>
+                  {chosen.map((p, index) => (
+                    <td key={p.id}>{defs[index][i].multiplier}×</td>
+                  ))}
                 </tr>
               ))}
             </tbody>
