@@ -105,6 +105,10 @@ export function DetailPage({ id }: { id: number }) {
     );
   const p = detail.pokemon;
   const profile = defenseProfile(p, game);
+  const megaForms =
+    game === 'za' && p.isDefault && p.kind !== 'mega'
+      ? detail.forms.filter((form) => form.kind === 'mega' && canUse(form, game))
+      : [];
   const compatible = canUse(p, game);
   function add() {
     if (!compatible) {
@@ -254,6 +258,78 @@ export function DetailPage({ id }: { id: number }) {
                     <StatsRadar stats={p.stats} />
                   </section>
                 </div>
+                {megaForms.length > 0 && (
+                  <section className="panel mega-preview-panel">
+                    <SectionHeading
+                      title="Prévia de Mega Evolução"
+                      caption="Atributos base e tipagem da forma cadastrada em Z-A."
+                    />
+                    <div className="mega-preview-list">
+                      {megaForms.map((mega) => {
+                        const megaProfile = defenseProfile(mega, game);
+                        const changedDefenses = profile.filter(
+                          (entry, index) => entry.multiplier !== megaProfile[index].multiplier,
+                        );
+                        return (
+                          <article className="mega-preview" key={mega.id}>
+                            <div className="mega-preview-forms">
+                              <div>
+                                <small>FORMA BASE</small>
+                                <PokemonImage pokemon={p} size={82} />
+                                <b>{p.name}</b>
+                                <div className="type-row">
+                                  {p.types.map((type) => (
+                                    <TypeBadge key={type} type={type} />
+                                  ))}
+                                </div>
+                              </div>
+                              <ArrowRight size={19} aria-hidden="true" />
+                              <div>
+                                <small>MEGA</small>
+                                <PokemonImage pokemon={mega} size={82} />
+                                <b>{mega.name}</b>
+                                <div className="type-row">
+                                  {mega.types.map((type) => (
+                                    <TypeBadge key={type} type={type} />
+                                  ))}
+                                </div>
+                              </div>
+                            </div>
+                            <StatBars stats={p.stats} compare={mega.stats} />
+                            <details className="mega-defense-details">
+                              <summary>
+                                Mudanças defensivas ({changedDefenses.length} tipos)
+                              </summary>
+                              {changedDefenses.length ? (
+                                <div className="type-row">
+                                  {changedDefenses.map((entry) => {
+                                    const after = megaProfile.find(
+                                      (item) => item.type === entry.type,
+                                    );
+                                    return (
+                                      <span className="mega-defense-change" key={entry.type}>
+                                        <TypeBadge type={entry.type} />
+                                        <small>
+                                          {entry.multiplier}× → {after?.multiplier ?? '?'}×
+                                        </small>
+                                      </span>
+                                    );
+                                  })}
+                                </div>
+                              ) : (
+                                <p className="muted">A tipagem defensiva permanece igual.</p>
+                              )}
+                            </details>
+                          </article>
+                        );
+                      })}
+                    </div>
+                    <Notice>
+                      Esta prévia compara dados base e tipagem. Não confirma Pedra Mega,
+                      disponibilidade do item, duração nem legalidade em uma regra específica.
+                    </Notice>
+                  </section>
+                )}
                 <section className="panel defensive-panel">
                   <SectionHeading
                     title="Como esta tipagem recebe ataques"
