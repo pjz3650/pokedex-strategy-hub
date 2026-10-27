@@ -1,0 +1,20 @@
+{
+  "checkedAt": "2026-10-17T01:07:02.436Z",
+  "commit": "79351bcf414276f82efda89c474f9de6e837af06",
+  "totals": {
+    "arceus": {
+      "species": 242,
+      "forms": 261,
+      "records": 5448,
+      "missingForms": ["59:2", "101:2", "549:2", "713:2", "900:1"]
+    },
+    "za": {
+      "species": 364,
+      "forms": 511,
+      "records": 24263,
+      "missingForms": []
+    }
+  },
+  "zaMoveProperties": 340,
+  "arceusMoveProperties": 177
+}

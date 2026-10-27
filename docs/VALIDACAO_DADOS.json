@@ -1,0 +1,43 @@
+{
+  "checkedAt": "2026-10-17T01:08:29.407Z",
+  "counts": {
+    "species": 1025,
+    "forms": 1351,
+    "moves": 920,
+    "learnsets": 73915,
+    "sources": 16
+  },
+  "games": [
+    {
+      "gameId": "sword",
+      "availableForms": 750,
+      "learnsetRecords": 44204,
+      "knownCampaignStages": 11,
+      "verifiedMoveProperties": 637,
+      "curatedItems": 2
+    },
+    {
+      "gameId": "arceus",
+      "availableForms": 261,
+      "learnsetRecords": 5448,
+      "knownCampaignStages": 3,
+      "verifiedMoveProperties": 177,
+      "curatedItems": 0
+    },
+    {
+      "gameId": "za",
+      "availableForms": 511,
+      "learnsetRecords": 24263,
+      "knownCampaignStages": 3,
+      "verifiedMoveProperties": 340,
+      "curatedItems": 2
+    }
+  ],
+  "checks": {
+    "noMegaInSword": true,
+    "noPPAsCooldown": true,
+    "noArceusAbilities": true,
+    "noArceusHeldItems": true,
+    "noNonPositiveStats": true
+  }
+}

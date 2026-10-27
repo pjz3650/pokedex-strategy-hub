@@ -1,0 +1,10 @@
+[
+  {"identifier":"leftovers","sourceUrl":"https://www.serebii.net/itemdex/leftovers.shtml","games":[
+    {"gameId":"sword","effect":"Recuperação passiva de HP ao final do turno; favorece permanência em campo.","location":"Wild Area, incluindo Giant's Seat; também pode ser obtido por Pickup.","minStage":null},
+    {"gameId":"za","effect":"Recuperação passiva de HP. Ritmo exato em tempo real ainda não modelado.","location":"Side Mission 68: The Best Use for Leftovers.","minStage":null}
+  ]},
+  {"identifier":"life-orb","sourceUrl":"https://www.serebii.net/itemdex/lifeorb.shtml","games":[
+    {"gameId":"sword","effect":"Aumenta a pressão ofensiva com perda de HP ao acertar ataques. Considere o custo de sobrevivência.","location":"Slumbering Weald, Wyndon Stadium ou Battle Tower. Etapa específica não catalogada.","minStage":null},
+    {"gameId":"za","effect":"Aumenta o poder de ataques com perda de HP ao acertar. Efeito numérico não incorporado à nota.","location":"Side Mission 85: Follow Litwick; também em Racine Construction.","minStage":null}
+  ]}
+]
