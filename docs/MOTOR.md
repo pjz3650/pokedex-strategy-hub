@@ -17,6 +17,7 @@ Para ataques com poder conhecido:
 - Afinidade = Attack ou Special Attack base dividido pelo maior dos dois. Não simula EVs, IVs, Nature, Effort Levels ou dano real.
 - Sword e Arceus: confiabilidade = precisão/100 do próprio jogo; ausência de teste de precisão usa 1. Recurso = 1.
 - Z-A: recurso = 8/cooldown base. Cooldown desconhecido resulta em zero, jamais usa PP. O fator 8 é apenas uma referência dimensional para comparar ataques. Confiabilidade não tenta converter precisão em taxa de acerto em tempo real.
+- No catálogo e nas alternativas de build de Z-A, alcance e área são apresentados quando a fonte fornece esses campos. Eles ainda não afetam a recomendação: a nota não simula distância, área de acerto, tempo de execução ou reposicionamento em combate.
 - Movimento com poder desconhecido ou variável recebe valor conservador 24 × afinidade × STAB; esse termo é somente uma prioridade editorial de seleção, não dano estimado.
 - Status usa tabela explícita de utilidade. Recuperação e proteção favorecem estilos defensivos; Swords Dance/Nasty Plot têm valor reduzido quando a estatística favorecida é inadequada. Movimentos não modelados recebem valor baixo. Efeitos secundários, recuo, travas de movimento, setup completo e custos de turno não estão integralmente representados.
 

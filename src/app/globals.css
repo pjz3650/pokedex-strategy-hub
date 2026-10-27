@@ -2162,6 +2162,10 @@ small {
   color: var(--subtle);
   font-size: 12px;
 }
+.move-spatial-data {
+  color: var(--accent);
+  font-size: 12px;
+}
 .pokemon-picker {
   display: flex;
   flex-direction: column;
@@ -2962,10 +2966,28 @@ small {
 }
 .comparator-controls {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 40px minmax(0, 1fr);
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   gap: 20px;
-  align-items: center;
+  align-items: end;
   margin-bottom: 26px;
+}
+.compare-picker {
+  display: flex;
+  align-items: end;
+  gap: 8px;
+  min-width: 0;
+}
+.compare-picker > .pokemon-picker {
+  flex: 1;
+  min-width: 0;
+}
+.compare-remove {
+  margin-bottom: 2px;
+  flex: 0 0 auto;
+}
+.compare-add {
+  align-self: end;
+  justify-self: start;
 }
 .compare-symbol {
   display: flex;
@@ -2980,8 +3002,11 @@ small {
 }
 .compare-cards {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 250px), 1fr));
   gap: 20px;
+}
+.compare-best {
+  color: var(--accent);
 }
 .compare-card {
   text-align: center;
