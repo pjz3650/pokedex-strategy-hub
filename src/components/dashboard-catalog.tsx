@@ -17,7 +17,6 @@ import {
   Search,
   ShieldCheck,
   Shuffle,
-  Sparkles,
   Swords,
   Users,
 } from 'lucide-react';
@@ -27,7 +26,6 @@ import { EmptyState, PokemonCard, PokemonImage } from './pokemon-ui';
 import { useHub } from './providers';
 import { Button } from './ui/button';
 export function PageHeading({
-  eyebrow,
   title,
   text,
   action,
@@ -40,10 +38,6 @@ export function PageHeading({
   return (
     <div className="page-heading">
       <div>
-        <div className="eyebrow">
-          <span />
-          {eyebrow}
-        </div>
         <h1>{title}</h1>
         <p>{text}</p>
       </div>
@@ -107,15 +101,9 @@ export function Dashboard() {
       />
       <div className="hero-grid">
         <section className="hero-main">
-          <div className="hero-grid-lines" />
           <div className="hero-text">
-            <span className="hero-badge">
-              <Sparkles size={13} /> CONHECIMENTO É SUA MELHOR VANTAGEM
-            </span>
             <h2>
-              Seu instinto.
-              <br />
-              Uma estratégia <em>melhor.</em>
+              Seu instinto. Uma estratégia <em>melhor.</em>
             </h2>
             <p>
               Transforme seus Pokémon favoritos em uma equipe que faz sentido. Cada escolha tem um
@@ -139,23 +127,18 @@ export function Dashboard() {
                 <Check size={12} /> Regras por jogo
               </span>
               <span>
-                <Check size={12} /> Sem precisar de IA
+                <Check size={12} /> 18 tipos
               </span>
             </div>
           </div>
           <div className="hero-art">
-            <div className="hero-circle circle-one" />
-            <div className="hero-circle circle-two" />
-            <span className="hero-coordinate top-coordinate">SINNOH · #0448</span>
-            <span className="hero-watermark">448</span>
             {hero && <PokemonImage pokemon={hero} size={440} priority />}
             <div className="hero-pokemon-label">
-              <span className="tiny-squares">▦</span>
+              <Layers3 size={18} />
               <div>
                 <b>Lucario</b>
-                <small>O poder está na conexão.</small>
+                <small>Pokédex #0448</small>
               </div>
-              <span className="label-plus">+</span>
             </div>
           </div>
         </section>
@@ -164,7 +147,6 @@ export function Dashboard() {
             <span className="promo-icon">
               <Shuffle size={23} />
             </span>
-            <span className="outline-tag">TEAM BUILDER</span>
           </div>
           <div className="mini-team-visual">
             {[6, 282, 445].map((id) => {
@@ -189,7 +171,7 @@ export function Dashboard() {
             Gerar uma equipe <ArrowUpRight size={18} />
           </Link>
           <div className="promo-foot">
-            <span /> Otimização determinística
+            <ShieldCheck size={14} /> Cobertura e equilíbrio por jogo
           </div>
         </section>
       </div>
@@ -264,7 +246,12 @@ export function Dashboard() {
           href="/pokedex"
           link="Explorar Pokédex"
         />
-        <div className="pokemon-grid featured-grid">
+        <div
+          className="pokemon-grid featured-grid"
+          tabIndex={0}
+          role="region"
+          aria-label="Pokémon em destaque"
+        >
           {highlights.map((p, i) => (
             <PokemonCard key={p.id} pokemon={p} index={i} />
           ))}
@@ -317,7 +304,6 @@ export function Dashboard() {
           )}
         </section>
         <section className="knowledge-panel panel">
-          <span className="eyebrow">POR TRÁS DOS NÚMEROS</span>
           <div className="knowledge-icon">
             <ShieldCheck size={26} />
           </div>

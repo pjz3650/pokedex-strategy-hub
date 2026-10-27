@@ -1,0 +1,296 @@
+[
+  {
+    "view": "desktop",
+    "screen": "dashboard",
+    "scroll": 1425,
+    "title": "Toda grande equipe começa aqui.",
+    "width": 1440
+  },
+  {
+    "view": "desktop",
+    "screen": "catalog",
+    "scroll": 1425,
+    "title": "Cada Pokémon. Novas possibilidades.",
+    "width": 1440
+  },
+  {
+    "view": "desktop",
+    "screen": "analyzer",
+    "scroll": 1425,
+    "title": "Conheça o potencial de cada escolha.",
+    "width": 1440
+  },
+  {
+    "view": "desktop",
+    "screen": "builds",
+    "scroll": 1425,
+    "title": "A build certa tem um porquê.",
+    "width": 1440
+  },
+  {
+    "view": "desktop",
+    "screen": "teams",
+    "scroll": 1425,
+    "title": "Encontre o equilíbrio do seu time.",
+    "width": 1440
+  },
+  {
+    "view": "desktop",
+    "screen": "generator",
+    "scroll": 1425,
+    "title": "Deixe as conexões surpreenderem.",
+    "width": 1440
+  },
+  {
+    "view": "desktop",
+    "screen": "compare",
+    "scroll": 1425,
+    "title": "Duas escolhas. Contextos diferentes.",
+    "width": 1440
+  },
+  {
+    "view": "desktop",
+    "screen": "tiers",
+    "scroll": 1425,
+    "title": "Uma classificação. Critérios à vista.",
+    "width": 1440
+  },
+  {
+    "view": "desktop",
+    "screen": "assistant",
+    "scroll": 1425,
+    "title": "Estratégia que dá para explicar.",
+    "width": 1440
+  },
+  {
+    "view": "desktop",
+    "screen": "saved",
+    "scroll": 1440,
+    "title": "Boas ideias merecem ser guardadas.",
+    "width": 1440
+  },
+  {
+    "view": "desktop",
+    "screen": "favorites",
+    "scroll": 1440,
+    "title": "Seus favoritos, sempre por perto.",
+    "width": 1440
+  },
+  {
+    "view": "desktop",
+    "screen": "profile",
+    "scroll": 1425,
+    "title": "Um lugar para guardar suas estratégias.",
+    "width": 1440
+  },
+  {
+    "view": "desktop",
+    "screen": "sources",
+    "scroll": 1425,
+    "title": "Saiba de onde vem cada escolha.",
+    "width": 1440
+  },
+  {
+    "view": "desktop",
+    "screen": "detail",
+    "scroll": 1425,
+    "title": "Tyranitar",
+    "width": 1440
+  },
+  {
+    "view": "tablet",
+    "screen": "dashboard",
+    "scroll": 753,
+    "title": "Toda grande equipe começa aqui.",
+    "width": 768
+  },
+  {
+    "view": "tablet",
+    "screen": "catalog",
+    "scroll": 753,
+    "title": "Cada Pokémon. Novas possibilidades.",
+    "width": 768
+  },
+  {
+    "view": "tablet",
+    "screen": "analyzer",
+    "scroll": 753,
+    "title": "Conheça o potencial de cada escolha.",
+    "width": 768
+  },
+  {
+    "view": "tablet",
+    "screen": "builds",
+    "scroll": 753,
+    "title": "A build certa tem um porquê.",
+    "width": 768
+  },
+  {
+    "view": "tablet",
+    "screen": "teams",
+    "scroll": 753,
+    "title": "Encontre o equilíbrio do seu time.",
+    "width": 768
+  },
+  {
+    "view": "tablet",
+    "screen": "generator",
+    "scroll": 753,
+    "title": "Deixe as conexões surpreenderem.",
+    "width": 768
+  },
+  {
+    "view": "tablet",
+    "screen": "compare",
+    "scroll": 753,
+    "title": "Duas escolhas. Contextos diferentes.",
+    "width": 768
+  },
+  {
+    "view": "tablet",
+    "screen": "tiers",
+    "scroll": 753,
+    "title": "Uma classificação. Critérios à vista.",
+    "width": 768
+  },
+  {
+    "view": "tablet",
+    "screen": "assistant",
+    "scroll": 753,
+    "title": "Estratégia que dá para explicar.",
+    "width": 768
+  },
+  {
+    "view": "tablet",
+    "screen": "saved",
+    "scroll": 768,
+    "title": "Boas ideias merecem ser guardadas.",
+    "width": 768
+  },
+  {
+    "view": "tablet",
+    "screen": "favorites",
+    "scroll": 768,
+    "title": "Seus favoritos, sempre por perto.",
+    "width": 768
+  },
+  {
+    "view": "tablet",
+    "screen": "profile",
+    "scroll": 768,
+    "title": "Um lugar para guardar suas estratégias.",
+    "width": 768
+  },
+  {
+    "view": "tablet",
+    "screen": "sources",
+    "scroll": 753,
+    "title": "Saiba de onde vem cada escolha.",
+    "width": 768
+  },
+  {
+    "view": "tablet",
+    "screen": "detail",
+    "scroll": 753,
+    "title": "Tyranitar",
+    "width": 768
+  },
+  {
+    "view": "mobile",
+    "screen": "dashboard",
+    "scroll": 375,
+    "title": "Toda grande equipe começa aqui.",
+    "width": 390
+  },
+  {
+    "view": "mobile",
+    "screen": "catalog",
+    "scroll": 375,
+    "title": "Cada Pokémon. Novas possibilidades.",
+    "width": 390
+  },
+  {
+    "view": "mobile",
+    "screen": "analyzer",
+    "scroll": 375,
+    "title": "Conheça o potencial de cada escolha.",
+    "width": 390
+  },
+  {
+    "view": "mobile",
+    "screen": "builds",
+    "scroll": 375,
+    "title": "A build certa tem um porquê.",
+    "width": 390
+  },
+  {
+    "view": "mobile",
+    "screen": "teams",
+    "scroll": 375,
+    "title": "Encontre o equilíbrio do seu time.",
+    "width": 390
+  },
+  {
+    "view": "mobile",
+    "screen": "generator",
+    "scroll": 375,
+    "title": "Deixe as conexões surpreenderem.",
+    "width": 390
+  },
+  {
+    "view": "mobile",
+    "screen": "compare",
+    "scroll": 375,
+    "title": "Duas escolhas. Contextos diferentes.",
+    "width": 390
+  },
+  {
+    "view": "mobile",
+    "screen": "tiers",
+    "scroll": 375,
+    "title": "Uma classificação. Critérios à vista.",
+    "width": 390
+  },
+  {
+    "view": "mobile",
+    "screen": "assistant",
+    "scroll": 375,
+    "title": "Estratégia que dá para explicar.",
+    "width": 390
+  },
+  {
+    "view": "mobile",
+    "screen": "saved",
+    "scroll": 390,
+    "title": "Boas ideias merecem ser guardadas.",
+    "width": 390
+  },
+  {
+    "view": "mobile",
+    "screen": "favorites",
+    "scroll": 390,
+    "title": "Seus favoritos, sempre por perto.",
+    "width": 390
+  },
+  {
+    "view": "mobile",
+    "screen": "profile",
+    "scroll": 375,
+    "title": "Um lugar para guardar suas estratégias.",
+    "width": 390
+  },
+  {
+    "view": "mobile",
+    "screen": "sources",
+    "scroll": 375,
+    "title": "Saiba de onde vem cada escolha.",
+    "width": 390
+  },
+  {
+    "view": "mobile",
+    "screen": "detail",
+    "scroll": 375,
+    "title": "Tyranitar",
+    "width": 390
+  }
+]
