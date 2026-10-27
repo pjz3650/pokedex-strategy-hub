@@ -58,11 +58,20 @@ export function PokemonImage({
     />
   );
 }
-export function TypeBadge({ type, multiplier }: { type: string; multiplier?: number }) {
+export function TypeBadge({
+  type,
+  multiplier,
+  title,
+}: {
+  type: string;
+  multiplier?: number;
+  title?: string;
+}) {
   return (
     <span
       className="type-badge"
       style={{ '--type-color': TYPE_COLORS[type] } as React.CSSProperties}
+      title={title}
     >
       <span className="type-dot" />
       {TYPE_LABELS[type] ?? type}
