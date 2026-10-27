@@ -1,0 +1,24 @@
+{
+  "checkedAt": "2026-10-16T21:00:00Z",
+  "note": "Curadoria factual limitada de movimentos, consultada manualmente. Não é um learnset completo. Sem reprodução das descrições de terceiros.",
+  "pokemon": [
+    { "id": 448, "url": "https://www.serebii.net/pokedex-sv/lucario/", "moves": [
+      ["aura-sphere", 80, 8, 25], ["bullet-punch", 30, 3, 1], ["swords-dance", null, 15, 35], ["bulldoze", 60, 6, 28], ["metal-claw", 50, 6, 8], ["detect", null, 13, 1], ["work-up", null, 15, 16]
+    ]},
+    { "id": 6, "url": "https://www.serebii.net/pokedex-sv/charizard/", "moves": [
+      ["fire-blast", 110, 10, 0], ["air-slash", 75, 7, 0], ["dragon-claw", 80, 8, 1], ["ember", 40, 6, 4], ["smokescreen", null, 10, 8], ["tackle", 40, 4, 1], ["growl", null, 6, 1]
+    ]},
+    { "id": 282, "url": "https://www.serebii.net/pokedex-sv/gardevoir/", "moves": [
+      ["dazzling-gleam", 80, 8, 0], ["disarming-voice", 40, 6, 1], ["confusion", 50, 6, 6], ["hypnosis", null, 10, 9], ["draining-kiss", 50, 7, 12], ["teleport", null, 7, 15], ["growl", null, 6, 1]
+    ]},
+    { "id": 445, "url": "https://www.serebii.net/pokedex-sv/garchomp/", "moves": [
+      ["crunch", 80, 8, 0], ["tackle", 40, 4, 1], ["sand-tomb", 20, 7, 1], ["dragon-breath", 60, 6, 12], ["bulldoze", 60, 6, 18], ["dragon-claw", 80, 8, 36], ["dig", 80, 12, 42]
+    ]},
+    { "id": 130, "url": "https://www.serebii.net/pokedex-sv/gyarados/", "moves": [
+      ["bite", 60, 6, 0], ["water-gun", 40, 6, 1], ["waterfall", 80, 8, 24], ["crunch", 80, 8, 30], ["iron-head", 80, 8, 33], ["bounce", 85, 12, 40], ["twister", 40, 6, 1]
+    ]},
+    { "id": 94, "url": "https://www.serebii.net/pokedex-sv/gengar/", "moves": [
+      ["confuse-ray", null, 6, 1], ["lick", 30, 6, 1], ["hypnosis", null, 10, 4], ["confusion", 50, 6, 8], ["shadow-sneak", 40, 3, 12], ["shadow-claw", 70, 7, 16]
+    ]}
+  ]
+}

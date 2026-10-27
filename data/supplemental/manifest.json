@@ -1,0 +1,54 @@
+{
+  "collectedAt": "2026-10-17T00:56:36.892Z",
+  "sources": [
+    {
+      "repository": "Fortelle/pokemon-learnsets",
+      "commit": "79351bcf414276f82efda89c474f9de6e837af06",
+      "files": {
+        "dist-legendsza.json": "dist/legendsza.json",
+        "dist-legendsarceus.json": "dist/legendsarceus.json",
+        "dist-swordshield.json": "dist/swordshield.json",
+        "za-base-availability.txt": "raw/legendsza@1.0.0/availabilities.txt",
+        "za-dlc-availability.txt": "raw/legendsza@2.0.0/availabilities.txt",
+        "za-base-levelup.txt": "raw/legendsza@1.0.0/levelup.txt",
+        "za-base-tm.txt": "raw/legendsza@1.0.0/tm.txt",
+        "za-base-oyabun.txt": "raw/legendsza@1.0.0/oyabun.txt",
+        "za-base-special.txt": "raw/legendsza@1.0.0/special.txt"
+      },
+      "hashes": {
+        "dist-legendsza.json": "7d31a1e72e31f7f111d0d98db37bde4d7b0f14e976b97599ac739e0cdcf89ec6",
+        "dist-legendsarceus.json": "22d798b85590c1751acb3f4b919f8bb6635eb55396bbb97987d8c133e0650d3f",
+        "dist-swordshield.json": "34fa133ada0006755bb67de4153eec0c61fc0b3d11c9bfae74b301c21f32c6d3",
+        "za-base-availability.txt": "ea7c6bb4c40e693cca72b8cd39f10ebd966f761aaa012dcf85a1fecb558544e7",
+        "za-dlc-availability.txt": "9d20d612490a4dfa437381dd41c5927a5e857282d35df5b18006d7f2ea8b1bcd",
+        "za-base-levelup.txt": "bf7a5ad2f12bc5bf3680a8d893e9e3cf2252bcc56f289448d0d8043cdc659810",
+        "za-base-tm.txt": "d031cb19fca4b445d920168de3a526231a8bbcbea041ad02551087517886471e",
+        "za-base-oyabun.txt": "966ddf3670ee50c8e5a51e978a0a769819ace5d90d8c3e475a65f66ff65e5e45",
+        "za-base-special.txt": "fccd809259772bff5d6282de448e6c01241c56b46bd9ebd5f3e680e93ee75e25"
+      }
+    },
+    {
+      "repository": "projectpokemon/za-textport",
+      "commit": "0eb14d75de5282f33b783854e1a5aca8c168d83c",
+      "files": {
+        "za-personal-moves.json": "Raw/personal_waza_param_array.json",
+        "za-move-timing.json": "Raw/waza_param_array.json"
+      },
+      "hashes": {
+        "za-personal-moves.json": "8e7af2ae467bc0ad90a2b396d2b79504c9e830864907f4c0b6b9c9edf7b52994",
+        "za-move-timing.json": "850370ff930a076d060ec8af1cd325d31f6c72d1ce630ea0e91ca6e33a28e371"
+      }
+    },
+    {
+      "repository": "Kaphotics/PLA-Move-Data",
+      "commit": "pastebin-YyGpUYLc-2022-01-27",
+      "files": {
+        "pla-move-data.tsv": "https://pastebin.com/raw/YyGpUYLc"
+      },
+      "sha256": "2c0dd91cc4a1289264c12b6fa2807964faf386310100c4cc02708eea23992eca",
+      "hashes": {
+        "pla-move-data.tsv": "2c0dd91cc4a1289264c12b6fa2807964faf386310100c4cc02708eea23992eca"
+      }
+    }
+  ]
+}
