@@ -5,7 +5,6 @@ import {
   BookOpen,
   ChartNoAxesColumnIncreasing,
   ChevronDown,
-  Command,
   FolderHeart,
   GitCompareArrows,
   Heart,
@@ -21,6 +20,7 @@ import {
   ShieldCheck,
   Shuffle,
   Sun,
+  UserRound,
   Users,
   X,
 } from 'lucide-react';
@@ -51,6 +51,47 @@ export function Shell({ children }: { children: ReactNode }) {
   const [query, setQuery] = useState('');
   const modal = useRef<HTMLDialogElement>(null);
   const input = useRef<HTMLInputElement>(null);
+  const sidebar = useRef<HTMLElement>(null);
+  useEffect(() => {
+    const desktop = window.matchMedia('(min-width: 961px)');
+    const closeOnDesktop = () => {
+      if (desktop.matches) setMobile(false);
+    };
+    desktop.addEventListener('change', closeOnDesktop);
+    return () => desktop.removeEventListener('change', closeOnDesktop);
+  }, []);
+  useEffect(() => {
+    if (!mobile) return;
+    const previousFocus = document.activeElement as HTMLElement | null;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    const controls = () =>
+      [
+        ...(sidebar.current?.querySelectorAll<HTMLElement>('a[href], button:not([disabled])') ??
+          []),
+      ].filter((element) => element.offsetParent !== null);
+    controls()[0]?.focus();
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setMobile(false);
+      if (event.key !== 'Tab') return;
+      const elements = controls();
+      const first = elements[0];
+      const last = elements[elements.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last?.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first?.focus();
+      }
+    };
+    document.addEventListener('keydown', onKeyDown);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      document.removeEventListener('keydown', onKeyDown);
+      previousFocus?.focus();
+    };
+  }, [mobile]);
   function openSearch() {
     modal.current?.showModal();
     input.current?.focus();
@@ -75,7 +116,9 @@ export function Shell({ children }: { children: ReactNode }) {
         )
         .slice(0, 8)
     : [];
-  const current = NAV.find((n) => n.href === pathname)?.label ?? 'Detalhes do Pokémon';
+  const current =
+    NAV.find((n) => n.href === pathname)?.label ??
+    (pathname === '/fontes' ? 'Fontes e critérios' : 'Detalhes do Pokémon');
   return (
     <div className="app-layout">
       <a href="#main-content" className="skip-link">
@@ -88,18 +131,25 @@ export function Shell({ children }: { children: ReactNode }) {
           aria-label="Fechar menu"
         />
       )}
-      <aside className={`sidebar ${mobile ? 'sidebar-open' : ''}`}>
+      <aside
+        ref={sidebar}
+        id="main-navigation"
+        className={`sidebar ${mobile ? 'sidebar-open' : ''}`}
+        role={mobile ? 'dialog' : undefined}
+        aria-modal={mobile || undefined}
+        aria-label="Menu do Pokétactics"
+      >
         <Link href="/" className="brand" onClick={() => setMobile(false)}>
           <span className="brand-icon">
             <span className="pokeball-mark" />
           </span>
           <span>
             poké<span className="brand-light">tactics</span>
-            <small>STRATEGY HUB</small>
+            <small>Pokédex e estratégia</small>
           </span>
         </Link>
         <div className="nav-label">
-          EXPLORAR{' '}
+          Explorar{' '}
           <button
             className="mobile-only icon-button"
             onClick={() => setMobile(false)}
@@ -111,15 +161,17 @@ export function Shell({ children }: { children: ReactNode }) {
         <nav aria-label="Navegação principal">
           {NAV.map((item, i) => (
             <div key={item.href}>
-              {i === 9 && <div className="nav-label collection-label">SUA COLEÇÃO</div>}
+              {i === 2 && <div className="nav-label collection-label">Planejar e analisar</div>}
+              {i === 9 && <div className="nav-label collection-label">Sua coleção</div>}
               <Link
                 href={item.href}
                 className={`nav-item ${pathname === item.href ? 'selected' : ''}`}
+                aria-current={pathname === item.href ? 'page' : undefined}
                 onClick={() => setMobile(false)}
               >
                 <item.icon size={18} />
                 <span>{item.label}</span>
-                {item.href === '/assistente' && <span className="nav-new">BETA</span>}
+                {item.href === '/assistente' && <span className="nav-new">Beta</span>}
                 {pathname === item.href && <i />}
               </Link>
             </div>
@@ -127,11 +179,13 @@ export function Shell({ children }: { children: ReactNode }) {
         </nav>
         <div className="sidebar-bottom">
           <div className="local-status">
-            <span /> MOTOR DETERMINÍSTICO
+            <span /> Dados separados por jogo
             <ShieldCheck size={13} />
           </div>
           <Link href="/perfil" className="account-link">
-            <span className="avatar">{personal?.user.name.slice(0, 2).toUpperCase() ?? 'TR'}</span>
+            <span className="avatar">
+              {personal ? personal.user.name.slice(0, 2).toUpperCase() : <UserRound size={18} />}
+            </span>
             <span>
               <b>{personal?.user.name ?? 'Olá, treinador'}</b>
               <small>{personal ? 'Sua jornada, organizada' : 'Entre para salvar equipes'}</small>
@@ -140,17 +194,19 @@ export function Shell({ children }: { children: ReactNode }) {
           </Link>
         </div>
       </aside>
-      <div className="workspace">
+      <div className="workspace" inert={mobile}>
         <header className="topbar">
           <div className="breadcrumbs">
             <button
               className="icon-button mobile-only"
               onClick={() => setMobile(true)}
               aria-label="Abrir navegação"
+              aria-expanded={mobile}
+              aria-controls="main-navigation"
             >
               <Menu size={22} />
             </button>
-            <span>Workspace</span>
+            <span>Pokétactics</span>
             <span className="breadcrumb-slash">/</span>
             <b>{current}</b>
           </div>
@@ -158,9 +214,7 @@ export function Shell({ children }: { children: ReactNode }) {
             <button className="global-search" aria-label="Buscar Pokémon" onClick={openSearch}>
               <Search size={16} />
               <span>Buscar Pokémon...</span>
-              <kbd>
-                <Command size={11} /> K
-              </kbd>
+              <kbd>Ctrl K</kbd>
             </button>
             <div className={`game-select game-${game}`}>
               <span className="status-dot" />
@@ -185,7 +239,7 @@ export function Shell({ children }: { children: ReactNode }) {
               {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
             </button>
             <Link href="/perfil" className="avatar small-avatar" aria-label="Abrir perfil">
-              {personal?.user.name.slice(0, 1).toUpperCase() ?? 'T'}
+              {personal ? personal.user.name.slice(0, 1).toUpperCase() : <UserRound size={17} />}
             </Link>
           </div>
         </header>
@@ -205,6 +259,7 @@ export function Shell({ children }: { children: ReactNode }) {
       <dialog
         ref={modal}
         className="search-dialog"
+        aria-label="Buscar Pokémon"
         onClick={(e) => {
           if (e.target === modal.current) modal.current?.close();
         }}
