@@ -1,0 +1,73 @@
+export const GAME_IDS = ['sword', 'arceus', 'za'] as const;
+export type GameId = (typeof GAME_IDS)[number];
+export type Stats = {
+  hp: number;
+  attack: number;
+  defense: number;
+  specialAttack: number;
+  specialDefense: number;
+  speed: number;
+};
+export type Availability = {
+  gameId: GameId;
+  content: string;
+  minStage: number | null;
+  acquisition: string;
+  verified: boolean;
+  sourceUrl?: string;
+};
+export type Pokemon = {
+  id: number;
+  identifier: string;
+  name: string;
+  speciesId: number;
+  generation: number;
+  kind: string;
+  isDefault: boolean;
+  evolvesFromId: number | null;
+  legendary: boolean;
+  mythical: boolean;
+  types: string[];
+  stats: Stats;
+  sprite: string | null;
+  artwork: string | null;
+  statsByGame?: Partial<Record<GameId, Stats>>;
+  availability: Availability[];
+};
+export type LegalMove = {
+  id: number;
+  name: string;
+  identifier: string;
+  type: string;
+  category: string;
+  gameId: GameId;
+  power: number | null;
+  accuracy: number | null;
+  pp: number | null;
+  cooldown: number | null;
+  priority: number | null;
+  range: string | null;
+  area: string | null;
+  verified: boolean;
+  effect: string | null;
+  methods: { method: string; level: number; content: string; minStage: number | null }[];
+  sourceUrl: string;
+};
+export type Style = 'balanced' | 'offensive' | 'defensive' | 'support';
+export type Member = {
+  formId: number;
+  moves: number[];
+  itemId?: number | null;
+  abilityId?: number | null;
+  nature?: string | null;
+};
+export type BuildResult = {
+  moves: LegalMove[];
+  score: number;
+  role: string;
+  components: Record<string, number>;
+  explanations: string[];
+  coverage: string[];
+  warnings: string[];
+  alternatives: LegalMove[];
+};
