@@ -1,6 +1,6 @@
 'use client';
 import type { Pokemon } from '@/lib/contracts';
-import { bst, canUse, TYPE_LABELS, TYPES } from '@/lib/engine';
+import { analyzeTeam, bst, canUse, TYPE_LABELS, TYPES } from '@/lib/engine';
 import { GAMES } from '@/lib/games';
 import {
   ArrowRight,
@@ -83,6 +83,20 @@ export function Dashboard() {
   }
   const hero = catalog.find((p) => p.id === 448);
   const saves = personal?.teams.filter((t) => t.gameId === game) ?? [];
+  const summaryTeam = saves[0];
+  const summaryMembers =
+    summaryTeam?.members
+      .map((member) => catalog.find((pokemon) => pokemon.id === member.formId))
+      .filter((pokemon): pokemon is Pokemon => !!pokemon) ?? [];
+  const teamSummary =
+    summaryMembers.length > 0
+      ? analyzeTeam(
+          summaryMembers.map((pokemon) => ({ pokemon, moves: [] })),
+          game,
+        )
+      : null;
+  const teamRiskTypes =
+    teamSummary?.matrix.filter((type) => type.weak >= 2 && type.resist + type.immune === 0) ?? [];
   return (
     <div className="dashboard">
       <PageHeading
@@ -300,6 +314,48 @@ export function Dashboard() {
                   <Plus size={15} /> Criar primeira equipe
                 </Link>
               </Button>
+            </div>
+          )}
+          {summaryTeam && teamSummary && (
+            <div className="team-snapshot">
+              <div className="team-snapshot-heading">
+                <div>
+                  <span className="eyebrow">RESUMO TÁTICO</span>
+                  <h3>{summaryTeam.name}</h3>
+                </div>
+                <Link href="/minhas-equipes" aria-label={`Abrir a equipe ${summaryTeam.name}`}>
+                  <ArrowUpRight size={17} />
+                </Link>
+              </div>
+              <div className="team-snapshot-metrics">
+                <div>
+                  <b>{summaryMembers.length}/6</b>
+                  <small>integrantes</small>
+                </div>
+                <div>
+                  <b>{teamSummary.averageSpeed}</b>
+                  <small>Speed base média</small>
+                </div>
+                <div>
+                  <b>{new Set(summaryMembers.flatMap((pokemon) => pokemon.types)).size}</b>
+                  <small>tipos distintos</small>
+                </div>
+              </div>
+              <p className="team-snapshot-note">
+                {teamRiskTypes.length ? (
+                  <>
+                    Fraquezas compartilhadas sem resposta defensiva:{' '}
+                    {teamRiskTypes
+                      .slice(0, 3)
+                      .map((type) => TYPE_LABELS[type.type])
+                      .join(', ')}
+                    .
+                  </>
+                ) : (
+                  'Nenhuma fraqueza compartilhada sem resistência ou imunidade foi encontrada pela tipagem.'
+                )}{' '}
+                Habilidades e movimentos não entram neste resumo.
+              </p>
             </div>
           )}
         </section>

@@ -1441,6 +1441,61 @@ small {
   height: 44px;
   margin-left: -8px;
 }
+.team-snapshot {
+  border-top: 1px solid var(--border);
+  margin-top: 8px;
+  padding-top: 18px;
+}
+.team-snapshot-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+.team-snapshot-heading .eyebrow {
+  font-size: 10px;
+}
+.team-snapshot-heading h3 {
+  font-size: 16px;
+  margin-top: 5px;
+}
+.team-snapshot-heading > a {
+  color: var(--accent);
+  display: flex;
+  padding: 8px;
+  border-radius: 8px;
+}
+.team-snapshot-heading > a:hover {
+  background: var(--surface-2);
+}
+.team-snapshot-metrics {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin: 14px 0;
+}
+.team-snapshot-metrics > div {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  padding: 11px 12px;
+  background: var(--bg);
+}
+.team-snapshot-metrics b {
+  font-size: 17px;
+}
+.team-snapshot-metrics small {
+  color: var(--muted);
+  font-size: 11px;
+}
+.team-snapshot-note {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.6;
+  margin: 0;
+}
 .catalog-toolbar {
   display: flex;
   align-items: center;
