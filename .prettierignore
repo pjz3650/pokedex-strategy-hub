@@ -1,0 +1,10 @@
+node_modules
+.next
+.local
+data/raw
+data/.snapshot-*
+data/.previous-snapshot-*
+pnpm-lock.yaml
+src/data/type-chart.json
+playwright-report
+test-results
