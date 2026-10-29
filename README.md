@@ -18,7 +18,7 @@ Uma Pokédex estratégica para explorar possibilidades, criar builds e montar eq
 
 </div>
 
-![Visão geral do Pokétactics: tema escuro com destaque menta, navegação lateral e ferramentas de estratégia](docs/design-review/after-desktop-dashboard.png)
+![Pokétactics Type Study: composição editorial, fundo claro, vermelho e arte contextual](docs/type-study/after/desktop-light-dashboard.png)
 
 ## Sua próxima equipe começa com uma boa escolha
 
@@ -44,12 +44,12 @@ A análise principal é **determinística e explicável**: usa regras e dados pr
 
 ### Pensado também para o celular
 
-Tema escuro em grafite e menta, opção de tema claro, navegação por teclado, foco visível, controles legíveis e layouts adaptados para desktop, tablet e celular.
+Type Study: identidade editorial japonesa com tema claro por padrão, interpretação escura, tipografia local e composições contextuais para toda a base. Navegação por teclado, foco visível e layouts próprios para desktop, tablet e celular.
 
 <p align="center">
-  <img src="docs/design-review/after-mobile-dashboard.png" alt="Visão geral no celular" width="265" />
+  <img src="docs/type-study/after/mobile-light-dashboard.png" alt="Visão geral no celular" width="265" />
   &nbsp;
-  <img src="docs/design-review/after-mobile-tyranitar-build.png" alt="Edição de build do Tyranitar no celular" width="265" />
+  <img src="docs/type-study/after/mobile-light-builds.png" alt="Edição de build do Tyranitar no celular" width="265" />
 </p>
 
 ## Dados que respeitam cada jogo

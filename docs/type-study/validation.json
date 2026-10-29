@@ -1,0 +1,40 @@
+{
+  "date": "2026-10-29",
+  "branch": "design/type-study-redesign",
+  "environment": "Local Windows, Chrome, PostgreSQL development data, production Next.js build",
+  "checks": {
+    "typecheck": "passed",
+    "lint": "passed",
+    "vitest": {
+      "passed": 96,
+      "failed": 0,
+      "files": 6
+    },
+    "productionBuild": "passed",
+    "playwright": {
+      "passed": 18,
+      "failed": 0,
+      "projects": ["desktop", "mobile"]
+    },
+    "browserAudit": {
+      "routeViews": 90,
+      "speciesViews": 48,
+      "failures": 0,
+      "themeMismatches": 0
+    },
+    "allFormVisualConfiguration": {
+      "forms": 1351,
+      "passed": true
+    },
+    "gitDiffCheck": "passed",
+    "independentReview": "ship"
+  },
+  "limits": [
+    "Detailed visual review covers the representative sample, not every form.",
+    "Existing official artwork pose differs from the approved illustration.",
+    "No full external WCAG or assistive-technology certification.",
+    "Images depend on the existing external source; fallback remains available.",
+    "No push or deployment performed."
+  ],
+  "implementationCommit": "16a4972"
+}
