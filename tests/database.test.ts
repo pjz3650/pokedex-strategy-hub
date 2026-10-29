@@ -1,20 +1,41 @@
 import 'dotenv/config';
-import { afterAll,describe,expect,it,vi } from 'vitest';
+import { afterAll, describe, expect, it, vi } from 'vitest';
 import { db } from '../src/lib/db';
-import { canUse,recommendBuild } from '../src/lib/engine';
+import { canUse, recommendBuild } from '../src/lib/engine';
 import {
-getCatalog,
-getDataCoverage,
-getDetail,
-getGameMovePool,
-getLegalMoves,
+  getCatalog,
+  getDataCoverage,
+  getDetail,
+  getGameMovePool,
+  getLegalMoves,
 } from '../src/lib/repository';
 import { rateLimit } from '../src/lib/security';
 import { validateMembers } from '../src/lib/team-service';
-import { memberSchema,registerSchema,teamSchema } from '../src/lib/validation';
+import { memberSchema, registerSchema, teamSchema } from '../src/lib/validation';
+import { getPokemonVisual } from '../src/lib/pokemon-visual';
 vi.mock('next/cache', () => ({ unstable_cache: (fn: unknown) => fn }));
 afterAll(() => db.$disconnect());
 describe('Integração com PostgreSQL e snapshot importado', () => {
+  it('configura visualmente todas as formas reais sem exceções por componente', async () => {
+    const forms = await db.pokemonForm.findMany({
+      include: { types: { include: { type: true } } },
+    });
+    expect(forms).toHaveLength(1351);
+    for (const form of forms) {
+      const visual = getPokemonVisual({
+        ...form,
+        types: form.types.map((entry) => entry.type.name),
+      });
+      expect(visual.japanese, form.identifier).toBeTruthy();
+      expect(visual.style['--poke-color' as keyof React.CSSProperties], form.identifier).toMatch(
+        /^#[a-f\d]{6}$/,
+      );
+      expect(
+        Number(visual.style['--art-scale' as keyof React.CSSProperties]),
+        form.identifier,
+      ).toBeGreaterThan(0);
+    }
+  });
   it('registra importação concluída e commit', async () => {
     const run = await db.dataImportRun.findFirst({
       where: { status: 'complete' },

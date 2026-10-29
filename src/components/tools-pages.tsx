@@ -2,6 +2,7 @@
 import type { Pokemon } from '@/lib/contracts';
 import { bst, canUse, defenseProfile, role, TYPE_LABELS, TYPES } from '@/lib/engine';
 import { GAMES } from '@/lib/games';
+import { getPokemonVisual } from '@/lib/pokemon-visual';
 import {
   ArrowRight,
   ArrowUpRight,
@@ -47,7 +48,7 @@ export function Analyzer({ builds = false }: { builds?: boolean }) {
           label="Pokémon para analisar"
         />
         {detail && (
-          <div className="selected-pokemon-mini">
+          <div className="selected-pokemon-mini" style={getPokemonVisual(detail.pokemon).style}>
             <PokemonImage pokemon={detail.pokemon} size={85} />
             <div>
               <h3>{detail.pokemon.name}</h3>
@@ -203,7 +204,7 @@ export function Comparator() {
       </div>
       <div className="compare-cards">
         {chosen.map((p, i) => (
-          <section className="panel compare-card" key={i}>
+          <section className="panel compare-card" key={i} style={getPokemonVisual(p).style}>
             <span className="dex-number">#{String(p.speciesId).padStart(4, '0')}</span>
             <PokemonImage key={p.id} pokemon={p} size={210} />
             <h2>{p.name}</h2>

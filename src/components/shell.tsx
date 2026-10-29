@@ -140,12 +140,9 @@ export function Shell({ children }: { children: ReactNode }) {
         aria-label="Menu do Pokétactics"
       >
         <Link href="/" className="brand" onClick={() => setMobile(false)}>
-          <span className="brand-icon">
-            <span className="pokeball-mark" />
-          </span>
           <span>
-            poké<span className="brand-light">tactics</span>
-            <small>Pokédex e estratégia</small>
+            Pokétactics<span className="brand-period">.</span>
+            <small lang="ja">ポケタクティクス</small>
           </span>
         </Link>
         <div className="nav-label">
@@ -165,8 +162,13 @@ export function Shell({ children }: { children: ReactNode }) {
               {i === 9 && <div className="nav-label collection-label">Sua coleção</div>}
               <Link
                 href={item.href}
-                className={`nav-item ${pathname === item.href ? 'selected' : ''}`}
-                aria-current={pathname === item.href ? 'page' : undefined}
+                className={`nav-item ${pathname === item.href || (item.href === '/pokedex' && pathname.startsWith('/pokemon/')) ? 'selected' : ''}`}
+                aria-current={
+                  pathname === item.href ||
+                  (item.href === '/pokedex' && pathname.startsWith('/pokemon/'))
+                    ? 'page'
+                    : undefined
+                }
                 onClick={() => setMobile(false)}
               >
                 <item.icon size={18} />
@@ -177,6 +179,15 @@ export function Shell({ children }: { children: ReactNode }) {
             </div>
           ))}
         </nav>
+        <Link
+          href="/fontes"
+          className={`nav-item sources-nav ${pathname === '/fontes' ? 'selected' : ''}`}
+          aria-current={pathname === '/fontes' ? 'page' : undefined}
+          onClick={() => setMobile(false)}
+        >
+          <BookOpen size={18} />
+          <span>Fontes e critérios</span>
+        </Link>
         <div className="sidebar-bottom">
           <div className="local-status">
             <span /> Dados separados por jogo

@@ -2,6 +2,7 @@
 import type { Member, Style } from '@/lib/contracts';
 import { analyzeTeam, role } from '@/lib/engine';
 import { GAMES } from '@/lib/games';
+import { getPokemonVisual } from '@/lib/pokemon-visual';
 import {
   ArrowRight,
   ArrowUpRight,
@@ -227,7 +228,7 @@ export function TeamBuilder() {
       );
       setEditTeamId(saved.id);
       await refresh();
-      notify('Equipe salva no PostgreSQL.');
+      notify('Equipe salva na sua conta.');
     } catch (e) {
       notify((e as Error).message);
     } finally {
@@ -317,6 +318,7 @@ export function TeamBuilder() {
           return (
             <div
               key={i}
+              style={p ? getPokemonVisual(p).style : undefined}
               className={`team-slot ${member ? 'filled' : ''} ${member && i === selectedIndex ? 'active' : ''}`}
             >
               {p ? (
@@ -328,7 +330,11 @@ export function TeamBuilder() {
                   >
                     <X size={14} />
                   </button>
-                  <button className="team-slot-content" onClick={() => setSelected(i)}>
+                  <button
+                    className="team-slot-content"
+                    aria-pressed={i === selectedIndex}
+                    onClick={() => setSelected(i)}
+                  >
                     <span className="slot-number">0{i + 1}</span>
                     <PokemonImage pokemon={p} size={116} />
                     <h3>{p.name}</h3>
@@ -633,7 +639,7 @@ export function Generator() {
                   {result.members.map((m, i) => {
                     const p = catalog.find((p) => p.id === m.formId);
                     return p ? (
-                      <article key={m.formId}>
+                      <article key={m.formId} style={getPokemonVisual(p).style}>
                         <span className="dex-number">0{i + 1}</span>
                         <PokemonImage pokemon={p} size={95} />
                         <div>
@@ -733,7 +739,7 @@ export function SavedTeams() {
       {!personal ? (
         <EmptyState
           title="Seu laboratório está esperando"
-          text="Entre na sua conta para salvar e recuperar equipes no banco de dados."
+          text="Entre na sua conta para salvar e recuperar suas equipes."
           action={
             <Button asChild>
               <Link href="/perfil">Entrar ou criar conta</Link>
