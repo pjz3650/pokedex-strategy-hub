@@ -95,13 +95,22 @@ export function PokemonImage({
     />
   );
 }
-export function TypeBadge({ type, multiplier }: { type: string; multiplier?: number }) {
+export function TypeBadge({
+  type,
+  multiplier,
+  title,
+}: {
+  type: string;
+  multiplier?: number;
+  title?: string;
+}) {
   const palette = TYPE_PALETTE[type] ?? TYPE_PALETTE.normal;
   const Icon = TYPE_ICONS[type as keyof typeof TYPE_ICONS] ?? Circle;
   return (
     <span
       className="type-badge"
       style={{ '--type-color': palette.color, '--type-ink': palette.ink } as React.CSSProperties}
+      title={title}
     >
       <Icon size={12} aria-hidden="true" />
       {TYPE_LABELS[type] ?? type}

@@ -1,6 +1,29 @@
 import { expect, test } from '@playwright/test';
 import { readFile } from 'node:fs/promises';
 
+test('prévia Mega de Z-A preserva a ficha Type Study e o radar', async ({ page }) => {
+  await page.goto('/pokemon/6?game=za');
+  await expect(page.getByRole('heading', { name: 'Charizard', exact: true })).toBeVisible();
+  await expect(
+    page.getByRole('heading', { name: 'Perfil de atributos', exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole('heading', { name: 'Prévia de Mega Evolução', exact: true }),
+  ).toBeVisible();
+  const preview = page.locator('.mega-preview-panel:visible');
+  await expect(preview.getByText('Charizard · Mega X', { exact: true })).toBeVisible();
+  await expect(preview.getByText('Charizard · Mega Y', { exact: true })).toBeVisible();
+  await preview.locator('summary').first().click();
+  await expect(preview.locator('.mega-defense-change').first()).toBeVisible();
+  await page.getByRole('combobox', { name: 'Jogo selecionado', exact: true }).selectOption('sword');
+  await expect(
+    page.getByRole('heading', { name: 'Prévia de Mega Evolução', exact: true }),
+  ).not.toBeVisible();
+  await expect(
+    page.getByRole('heading', { name: 'Perfil de atributos', exact: true }),
+  ).toBeVisible();
+});
+
 test('Type Study mantém o tema salvo, nomes japoneses e abas por teclado', async ({ page }) => {
   await page.goto('/pokemon/6?game=sword');
   await expect(page.getByRole('heading', { name: 'Charizard', exact: true })).toBeVisible();

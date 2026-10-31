@@ -90,6 +90,10 @@ Seis composições: `balanced`, `upright`, `wide`, `serpentine`, `cluster`, `win
 
 O hero conserva identificação à esquerda e arte à direita no desktop/tablet; no celular, identificação e ações precedem uma área de arte de 310px. Variantes largas e em grupo ajustam altura e posição do número. Números são decorativos na arte (`aria-hidden`); a identificação textual está disponível separadamente.
 
+## Prévia de Mega Evolução
+
+A visão geral da ficha também preserva a prévia de Mega Evolução integrada da `main`: em Z-A, formas base compatíveis mostram as Megas da mesma espécie, marcadores de atributos comparados e mudanças defensivas expansíveis. O radar e a composição editorial permanecem disponíveis. Essa prévia usa os tokens de superfície, raio e espaçamento do Type Study e não configura nem libera transformações em batalha.
+
 ## Cores dos tipos
 
 `TYPE_PALETTE` é a única tabela de cores dos 18 tipos. Cada entrada possui `color` para composição e `ink` para fundo do badge com texto branco. Há teste de contraste ≥4,5:1 para os 18 badges. Cor, ícone Lucide e nome em português comunicam o tipo juntos. Multiplicadores aparecem numericamente. Não deduzir vantagem apenas pela cor.
