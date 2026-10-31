@@ -118,7 +118,15 @@ export function TypeBadge({
     </span>
   );
 }
-export function PokemonCard({ pokemon, index = 0 }: { pokemon: Pokemon; index?: number }) {
+export function PokemonCard({
+  pokemon,
+  index = 0,
+  returnTo,
+}: {
+  pokemon: Pokemon;
+  index?: number;
+  returnTo?: string;
+}) {
   const visual = getPokemonVisual(pokemon);
   const { personal, personalLoading, notify, refresh, game } = useHub();
   const favorite = personal?.favorites.includes(pokemon.id);
@@ -152,7 +160,11 @@ export function PokemonCard({ pokemon, index = 0 }: { pokemon: Pokemon; index?: 
           <Heart size={17} fill={favorite ? 'currentColor' : 'none'} />
         </button>
       </div>
-      <Link href={`/pokemon/${pokemon.id}?game=${game}`} className="pokemon-card-link">
+      <Link
+        id={returnTo ? `pokemon-card-${pokemon.id}` : undefined}
+        href={`/pokemon/${pokemon.id}?game=${game}${returnTo ? '&from=' + encodeURIComponent(returnTo) : ''}`}
+        className="pokemon-card-link"
+      >
         <div className="pokemon-art">
           <div className="card-art-ground" aria-hidden="true" />
           {visual.japanese && (

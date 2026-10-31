@@ -16,13 +16,14 @@ import {
 } from 'lucide-react';
 import { signIn, signOut } from 'next-auth/react';
 import { useSearchParams } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { PageHeading, SectionHeading } from './dashboard-catalog';
 import { Notice } from './pokemon-detail';
-import { api, useHub } from './providers';
+import { api, SessionGate, useHub } from './providers';
+import { savedStage } from '@/lib/ux-state';
 import { Button } from './ui/button';
 export function AccountPage() {
-  const { personal, refresh, notify, game, setGame, theme, setTheme, setDraft, setEditTeamId } =
+  const { personal, sessionStatus, refresh, notify, game, setGame, theme, setTheme, clearSession } =
     useHub();
   const params = useSearchParams();
   const token = params.get('token');
@@ -37,15 +38,13 @@ export function AccountPage() {
   const [primary, setPrimary] = useState<GameId>(game);
   const [stage, setStage] = useState(0);
   const [history, setHistory] = useState(false);
+  const hydrated = useRef<string | null>(null);
   useEffect(() => {
-    if (personal) {
+    if (personal && hydrated.current !== personal.user.id) {
+      hydrated.current = personal.user.id;
       setName(personal.user.name);
       setPrimary(personal.user.preferences.game ?? game);
-      setStage(
-        personal.user.preferences.stages?.[personal.user.preferences.game ?? game] ??
-          personal.user.preferences.stage ??
-          0,
-      );
+      setStage(savedStage(personal.user.preferences, personal.user.preferences.game ?? game));
       setHistory(personal.user.preferences.history ?? false);
     }
   }, [personal, game]);
@@ -101,8 +100,12 @@ export function AccountPage() {
         },
       });
       setGame(primary);
-      await refresh();
-      notify('Preferências salvas.');
+      const synced = await refresh();
+      notify(
+        synced
+          ? 'Preferências salvas.'
+          : 'Preferências gravadas; não foi possível atualizar a conta.',
+      );
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -113,14 +116,24 @@ export function AccountPage() {
     <div>
       <PageHeading
         eyebrow="DO SEU JEITO"
-        title={personal ? 'Sua jornada, suas escolhas.' : 'Um lugar para guardar suas estratégias.'}
+        title={
+          personal
+            ? 'Sua jornada, suas escolhas.'
+            : sessionStatus === 'visitor'
+              ? 'Um lugar para guardar suas estratégias.'
+              : 'Sua conta e suas estratégias.'
+        }
         text={
           personal
             ? 'Gerencie sua conta, preferências e progresso selecionado.'
-            : 'Crie uma conta para salvar equipes, builds e Pokémon favoritos.'
+            : sessionStatus === 'visitor'
+              ? 'Crie uma conta para salvar equipes, builds e Pokémon favoritos.'
+              : 'Aguardando a confirmação da sessão para recuperar sua coleção.'
         }
       />
-      {personal ? (
+      {!personal && sessionStatus !== 'visitor' ? (
+        <SessionGate />
+      ) : personal ? (
         <div className="account-settings-grid">
           <section className="panel profile-card">
             <div className="large-avatar">{personal.user.name.slice(0, 2).toUpperCase()}</div>
@@ -144,11 +157,15 @@ export function AccountPage() {
             <Button
               variant="secondary"
               onClick={async () => {
-                await signOut({ redirect: false });
-                setDraft([]);
-                setEditTeamId(null);
-                await refresh();
-                notify('Você saiu da conta.');
+                clearSession();
+                try {
+                  await signOut({ redirect: false });
+                  notify('Você saiu da conta.');
+                } catch {
+                  notify(
+                    'Não foi possível confirmar a saída no servidor. Tente sair novamente antes de compartilhar este navegador.',
+                  );
+                }
               }}
             >
               <LogOut size={15} /> Sair da conta

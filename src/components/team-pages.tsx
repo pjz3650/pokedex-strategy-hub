@@ -1,5 +1,5 @@
 'use client';
-import type { Member, Style } from '@/lib/contracts';
+import type { GameId, Member, Style } from '@/lib/contracts';
 import { analyzeTeam, role } from '@/lib/engine';
 import { GAMES } from '@/lib/games';
 import { getPokemonVisual } from '@/lib/pokemon-visual';
@@ -25,7 +25,17 @@ import { useEffect, useRef, useState } from 'react';
 import { PageHeading, SectionHeading } from './dashboard-catalog';
 import { MemberEditor, Notice, PokemonPicker, styleLabel } from './pokemon-detail';
 import { EmptyState, PokemonImage, TypeBadge } from './pokemon-ui';
-import { api, useHub } from './providers';
+import { api, downloadDraft, SessionGate, useHub, type SavedTeam } from './providers';
+import { ConfirmDelete } from './confirm-delete';
+import {
+  ApiError,
+  changeDraft,
+  criteriaSignature,
+  newDraft,
+  parseTeamImport,
+  savedStage,
+} from '@/lib/ux-state';
+import { generationConflicts } from '@/lib/generation-ux';
 import { Button } from './ui/button';
 type Analysis = ReturnType<typeof analyzeTeam>;
 export function AnalysisPanel({ analysis }: { analysis: Analysis | null }) {
@@ -155,9 +165,22 @@ export function AnalysisPanel({ analysis }: { analysis: Analysis | null }) {
   );
 }
 export function TeamBuilder() {
-  const { catalog, game, personal, notify, draft, setDraft, refresh, editTeamId, setEditTeamId } =
-    useHub();
-  const [name, setName] = useState('Minha nova equipe');
+  const {
+    catalog,
+    game,
+    personal,
+    sessionStatus,
+    notify,
+    draft,
+    teamDraft,
+    setDraft,
+    refresh,
+    editTeamId,
+    setDraftName: setName,
+    markTeamSaved,
+    replaceTeam,
+  } = useHub();
+  const name = teamDraft.name;
   const [selected, setSelected] = useState(0);
   const [analysis, setAnalysis] = useState<Analysis | null>(null);
   const [analyzing, setAnalyzing] = useState(false);
@@ -166,17 +189,26 @@ export function TeamBuilder() {
   const [importing, setImporting] = useState(false);
   const modal = useRef<HTMLDialogElement>(null);
   const file = useRef<HTMLInputElement>(null);
+  const mounted = useRef(true);
   useEffect(() => {
-    if (editTeamId) {
-      const saved = personal?.teams.find((t) => t.id === editTeamId);
-      if (saved) setName(saved.name);
-    } else setName('Minha nova equipe');
-  }, [editTeamId, personal]);
+    mounted.current = true;
+    if (!draft.length)
+      requestAnimationFrame(() =>
+        document.querySelector<HTMLInputElement>('#team-controls [role=combobox]')?.focus(),
+      );
+    return () => {
+      mounted.current = false;
+    };
+    // Initial focus is intentional only when opening a new empty builder.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   useEffect(() => {
     if (!draft.length) {
       setAnalysis(null);
+      setAnalyzing(false);
       return;
     }
+    setAnalyzing(true);
     let active = true;
     const timer = setTimeout(() => {
       setAnalyzing(true);
@@ -216,9 +248,15 @@ export function TeamBuilder() {
   }
   async function save() {
     if (!personal) {
-      notify('Entre na sua conta para salvar equipes.');
+      notify(
+        sessionStatus === 'visitor'
+          ? 'Entre na sua conta para salvar equipes.'
+          : 'A sessão ainda não foi confirmada. Use Repetir para consultar sua conta.',
+      );
       return;
     }
+    if (busy) return;
+    const snapshot = structuredClone(teamDraft);
     setBusy(true);
     try {
       const saved = await api<{ id: string }>(
@@ -226,9 +264,13 @@ export function TeamBuilder() {
         editTeamId ? 'PATCH' : 'POST',
         { name, gameId: game, mode: 'story', members: draft },
       );
-      setEditTeamId(saved.id);
-      await refresh();
-      notify('Equipe salva na sua conta.');
+      markTeamSaved(snapshot, saved.id, personal.user.id);
+      const synced = await refresh();
+      notify(
+        synced
+          ? 'Equipe salva na sua conta.'
+          : 'Gravação concluída; não foi possível atualizar a lista. Não é necessário salvar outra cópia.',
+      );
     } catch (e) {
       notify((e as Error).message);
     } finally {
@@ -236,28 +278,59 @@ export function TeamBuilder() {
     }
   }
   function exportTeam() {
-    const data = JSON.stringify({ version: 1, name, gameId: game, members: draft }, null, 2);
-    const url = URL.createObjectURL(new Blob([data], { type: 'application/json' }));
-    const anchor = document.createElement('a');
-    anchor.href = url;
-    anchor.download = 'poketactics-equipe.json';
-    anchor.click();
-    URL.revokeObjectURL(url);
+    downloadDraft(teamDraft);
+  }
+  const [importError, setImportError] = useState('');
+  const [importConfirm, setImportConfirm] = useState(false);
+  const [removed, setRemoved] = useState<{
+    member: Member;
+    index: number;
+    game: GameId;
+    revision: string;
+  } | null>(null);
+  const [replacing, setReplacing] = useState<number | null>(null);
+  const replacementDialog = useRef<HTMLDialogElement>(null);
+  const revision = JSON.stringify([game, draft]);
+  useEffect(() => {
+    if (removed && removed.revision !== revision) setRemoved(null);
+  }, [revision, removed]);
+  useEffect(() => {
+    setReplacing(null);
+    replacementDialog.current?.close();
+  }, [game]);
+  function removeMember(index: number) {
+    const members = draft.filter((_, i) => i !== index);
+    setRemoved({ member: draft[index], index, game, revision: JSON.stringify([game, members]) });
+    setDraft(members);
   }
   async function importTeam() {
+    if (importing) return;
     setImporting(true);
+    setImportError('');
     try {
-      const data = JSON.parse(importText);
-      if (data.gameId !== game)
-        throw new Error('Selecione primeiro o mesmo jogo do arquivo importado.');
-      await api('analyze', 'POST', { gameId: game, members: data.members });
-      setDraft(data.members);
-      setName(typeof data.name === 'string' ? data.name.slice(0, 80) : 'Equipe importada');
-      setEditTeamId(null);
+      const data = parseTeamImport(importText);
+      if (!importConfirm) {
+        setImportConfirm(true);
+        return;
+      }
+      await api('analyze', 'POST', { gameId: data.gameId, members: data.members });
+      if (!mounted.current) return;
+      // Close the import top layer before the shared replacement confirmation.
       modal.current?.close();
+      const next = changeDraft(newDraft(data.gameId), { name: data.name, members: data.members });
+      if (!(await replaceTeam(next))) {
+        modal.current?.showModal();
+        return;
+      }
+      setImportConfirm(false);
+      setRemoved(null);
       notify('Equipe importada e validada. Salve para persistir na conta.');
     } catch (e) {
-      notify((e as Error).message);
+      setImportError((e as Error).message);
+      modal.current?.showModal();
+      requestAnimationFrame(() =>
+        modal.current?.querySelector<HTMLTextAreaElement>('textarea')?.focus(),
+      );
     } finally {
       setImporting(false);
     }
@@ -270,7 +343,7 @@ export function TeamBuilder() {
         ? 'instant'
         : 'smooth',
     });
-    controls?.querySelector<HTMLSelectElement>('select')?.focus({ preventScroll: true });
+    controls?.querySelector<HTMLInputElement>('[role=combobox]')?.focus({ preventScroll: true });
   }
   return (
     <div>
@@ -326,7 +399,7 @@ export function TeamBuilder() {
                   <button
                     className="remove-member icon-button"
                     aria-label={`Remover ${p.name}`}
-                    onClick={() => setDraft(draft.filter((_, index) => index !== i))}
+                    onClick={() => removeMember(i)}
                   >
                     <X size={14} />
                   </button>
@@ -369,7 +442,25 @@ export function TeamBuilder() {
             title={draft.length ? 'Quem vem completar a equipe?' : 'O primeiro passo é escolher.'}
             caption="Montagem manual não restringe o progresso da campanha."
           />
-          <PokemonPicker value={undefined} onChange={add} label="Adicionar integrante" />
+          <PokemonPicker
+            value={undefined}
+            onChange={add}
+            label="Adicionar integrante"
+            intent="team"
+          />
+          {removed && removed.revision === revision && (
+            <Button
+              variant="secondary"
+              onClick={() => {
+                const next = [...draft];
+                next.splice(removed.index, 0, removed.member);
+                setDraft(next);
+                setRemoved(null);
+              }}
+            >
+              Desfazer remoção
+            </Button>
+          )}
           {draft[selectedIndex] && (
             <>
               <div className="editor-divider" />
@@ -377,6 +468,15 @@ export function TeamBuilder() {
                 title={`Configurar ${catalog.find((p) => p.id === draft[selectedIndex].formId)?.name ?? 'integrante'}`}
                 caption="Apenas movimentos com learnset específico do jogo."
               />
+              <Button
+                variant="secondary"
+                onClick={() => {
+                  setReplacing(selectedIndex);
+                  replacementDialog.current?.showModal();
+                }}
+              >
+                Substituir integrante
+              </Button>
               <MemberEditor
                 key={`${draft[selectedIndex].formId}-${game}-${selectedIndex}`}
                 member={draft[selectedIndex]}
@@ -387,7 +487,7 @@ export function TeamBuilder() {
             </>
           )}
           <Notice>{GAMES[game].note}</Notice>
-          {!personal && (
+          {!personal && sessionStatus === 'visitor' && (
             <Link href="/perfil" className="login-tip">
               <LockKeyhole size={15} /> Entre para salvar sua equipe na conta{' '}
               <ArrowRight size={14} />
@@ -398,7 +498,8 @@ export function TeamBuilder() {
           <div className="analysis-status" aria-live="polite">
             {analyzing ? (
               <>
-                <LoaderCircle size={13} className="spin" /> Recalculando...
+                <LoaderCircle size={13} className="spin" /> Recalculando... Métricas da revisão
+                anterior até a atualização.
               </>
             ) : analysis ? (
               <>
@@ -425,6 +526,7 @@ export function TeamBuilder() {
           o rascunho.
         </p>
         <input
+          aria-label="Arquivo JSON da equipe"
           ref={file}
           type="file"
           accept="application/json,.json"
@@ -432,22 +534,96 @@ export function TeamBuilder() {
             const f = e.target.files?.[0];
             if (!f) return;
             if (f.size > 64000) {
-              notify('Arquivo maior que 64 KB.');
+              setImportError('Arquivo maior que 64 KB.');
               return;
             }
-            setImportText(await f.text());
+            try {
+              setImportText(await f.text());
+              setImportError('');
+              setImportConfirm(false);
+            } catch {
+              setImportError('Não foi possível ler o arquivo.');
+            }
           }}
         />
         <textarea
           aria-label="JSON da equipe"
+          aria-invalid={!!importError}
+          aria-describedby={importError ? 'import-error' : undefined}
           value={importText}
-          onChange={(e) => setImportText(e.target.value)}
+          onChange={(e) => {
+            setImportText(e.target.value);
+            setImportConfirm(false);
+            setImportError('');
+          }}
           rows={12}
           maxLength={64000}
         />
+        {importError && (
+          <p id="import-error" className="error-notice" role="alert">
+            {importError}
+          </p>
+        )}
+        {importConfirm && (
+          <Notice>
+            Importar em{' '}
+            {(() => {
+              try {
+                return GAMES[parseTeamImport(importText).gameId].short;
+              } catch {
+                return 'jogo do arquivo';
+              }
+            })()}
+            . O rascunho desse jogo será substituído após sua confirmação.
+          </Notice>
+        )}
+        <div className="button-row">
+          <Button variant="secondary" onClick={() => modal.current?.close()}>
+            Cancelar
+          </Button>
+        </div>
         <Button onClick={importTeam} disabled={importing || !importText}>
-          {importing ? 'Validando...' : 'Validar e importar'}
+          {importing
+            ? 'Validando...'
+            : importConfirm
+              ? 'Confirmar importação'
+              : 'Validar e importar'}
         </Button>
+      </dialog>{' '}
+      <dialog
+        ref={replacementDialog}
+        className="import-dialog"
+        aria-label="Substituir integrante"
+        onCancel={() => setReplacing(null)}
+      >
+        <h2>Substituir integrante {replacing === null ? '' : replacing + 1}</h2>
+        <p>
+          A equipe só muda quando você confirmar uma nova forma. A configuração anterior não será
+          copiada.
+        </p>
+        <Button
+          autoFocus
+          variant="secondary"
+          onClick={() => {
+            setReplacing(null);
+            replacementDialog.current?.close();
+          }}
+        >
+          Cancelar
+        </Button>
+        <PokemonPicker
+          value={undefined}
+          intent="team"
+          label="Novo integrante"
+          onChange={(id) => {
+            if (replacing === null) return;
+            setDraft(draft.map((m, i) => (i === replacing ? { formId: id, moves: [] } : m)));
+            setSelected(replacing);
+            setRemoved(null);
+            setReplacing(null);
+            replacementDialog.current?.close();
+          }}
+        />
       </dialog>
     </div>
   );
@@ -462,11 +638,15 @@ type Generation = {
   warnings: string[];
 };
 export function Generator() {
-  const { game, personal, catalog, setDraft, setEditTeamId } = useHub();
+  const { game, personal, catalog, replaceTeam, owner } = useHub();
   const router = useRouter();
-  const [stage, setStage] = useState(
-    personal?.user.preferences.stages?.[game] ?? personal?.user.preferences.stage ?? 0,
-  );
+  const [stages, setStages] = useState<Partial<Record<GameId, number>>>({});
+  const [touched, setTouched] = useState<Partial<Record<GameId, boolean>>>({});
+  const stage = touched[game] ? (stages[game] ?? 0) : savedStage(personal?.user.preferences, game);
+  function setStage(value: number) {
+    setTouched((current) => ({ ...current, [game]: true }));
+    setStages((current) => ({ ...current, [game]: value }));
+  }
   const [dlc, setDlc] = useState(false);
   const [ignoreProgress, setIgnore] = useState(false);
   const [style, setStyle] = useState<Style>('balanced');
@@ -477,50 +657,91 @@ export function Generator() {
   const [error, setError] = useState('');
   const [result, setResult] = useState<Generation | null>(null);
   const [variant, setVariant] = useState(0);
+  const optIn = useRef(false);
   const generationRequest = useRef(0);
+  const criteria = {
+    gameId: game,
+    mode: 'story',
+    stage,
+    dlc,
+    ignoreProgress,
+    style,
+    required,
+    banned,
+    size,
+  };
+  const signature = criteriaSignature(criteria);
+  const [resultSignature, setResultSignature] = useState('');
+  const [stale, setStale] = useState(false);
+  const [diagnostic, setDiagnostic] = useState<ReturnType<
+    typeof import('@/lib/generation-ux').diagnoseGeneration
+  > | null>(null);
+  const conflicts = generationConflicts(catalog, game, criteria);
   useEffect(() => {
     generationRequest.current++;
     setBusy(false);
-    setResult(null);
+    setStale(true);
+    setVariant(0);
     setError('');
+    setDiagnostic(null);
+  }, [signature, owner]);
+  useEffect(() => {
     setRequired([]);
     setBanned([]);
-    setVariant(0);
   }, [game]);
-  async function generate() {
+  useEffect(
+    () => () => {
+      generationRequest.current++;
+    },
+    [],
+  );
+  async function generate(allowUnknown = false) {
+    const snapshot = { ...criteria, ignoreProgress: allowUnknown || ignoreProgress };
+    if (generationConflicts(catalog, game, snapshot).length) return;
     const requestId = ++generationRequest.current;
     setBusy(true);
     setError('');
-    setResult(null);
+    setDiagnostic(null);
     try {
       const data = await api<Generation>('generate', 'POST', {
-        gameId: game,
-        mode: 'story',
-        stage,
-        dlc,
-        ignoreProgress,
-        style,
-        required,
-        banned,
-        size,
-        variant,
+        ...snapshot,
+        variant: stale || signature !== resultSignature ? 0 : variant,
       });
       if (requestId === generationRequest.current) {
         setResult(data);
-        setVariant(variant + 1);
+        setResultSignature(criteriaSignature(snapshot));
+        setStale(false);
+        setVariant((v) => v + 1);
       }
     } catch (e) {
-      if (requestId === generationRequest.current) setError((e as Error).message);
+      if (requestId === generationRequest.current) {
+        setError((e as Error).message);
+        if (e instanceof ApiError && e.details)
+          setDiagnostic(e.details as NonNullable<typeof diagnostic>);
+      }
     } finally {
       if (requestId === generationRequest.current) setBusy(false);
     }
   }
-  function open() {
-    if (!result) return;
-    setDraft(result.members.map((m) => ({ formId: m.formId, moves: m.moves })));
-    setEditTeamId(null);
-    router.push('/equipes');
+  async function open() {
+    if (!result || stale || signature !== resultSignature || busy) return;
+    const members = result.members.map(({ formId, moves, itemId, abilityId, nature }) => ({
+      formId,
+      moves,
+      itemId,
+      abilityId,
+      nature,
+    }));
+    if (await replaceTeam(changeDraft(newDraft(game), { members }))) router.push('/equipes');
   }
+  useEffect(() => {
+    if (optIn.current && ignoreProgress) {
+      optIn.current = false;
+      void generate();
+    }
+    // Run only after the explicitly requested criteria change has invalidated old requests.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [signature]);
   return (
     <div>
       <PageHeading
@@ -587,9 +808,12 @@ export function Generator() {
           <div className="editor-divider" />
           <PokemonPicker
             value={undefined}
+            intent="team"
             label="Pokémon obrigatórios (opcional)"
             exclude={[...required, ...banned]}
-            onChange={(id) => setRequired([...required, id])}
+            onChange={(id) => {
+              if (required.length < 6) setRequired([...required, id]);
+            }}
           />
           <div className="selected-chips">
             {required.map((id) => (
@@ -601,9 +825,12 @@ export function Generator() {
           </div>
           <PokemonPicker
             value={undefined}
+            intent="banned"
             label="Pokémon proibidos (opcional)"
             exclude={[...required, ...banned]}
-            onChange={(id) => setBanned([...banned, id])}
+            onChange={(id) => {
+              if (banned.length < 100) setBanned([...banned, id]);
+            }}
           />
           <div className="selected-chips">
             {banned.map((id) => (
@@ -613,10 +840,45 @@ export function Generator() {
               </button>
             ))}
           </div>
-          <Button onClick={generate} disabled={busy} className="full-width">
+          {conflicts.length > 0 && (
+            <div className="error-notice" role="alert">
+              {conflicts.map((c, i) => (
+                <p key={i}>
+                  {c.message}{' '}
+                  {c.id && (
+                    <button onClick={() => setRequired(required.filter((id) => id !== c.id))}>
+                      Remover obrigatório
+                    </button>
+                  )}
+                </p>
+              ))}
+              {required.length > size && (
+                <Button variant="secondary" onClick={() => setSize(required.length)}>
+                  Aumentar para {required.length}
+                </Button>
+              )}
+              <p>Você pode ajustar DLC ou Ignorar progresso explicitamente nos controles acima.</p>
+            </div>
+          )}
+          <Button
+            onClick={() => void generate()}
+            disabled={busy || conflicts.length > 0}
+            className="full-width"
+          >
             {busy ? <LoaderCircle className="spin" size={16} /> : <Shuffle size={16} />}{' '}
             {busy ? 'Explorando combinações...' : 'Gerar minha equipe'}
           </Button>
+          {busy && (
+            <Button
+              variant="secondary"
+              onClick={() => {
+                generationRequest.current++;
+                setBusy(false);
+              }}
+            >
+              Cancelar processamento
+            </Button>
+          )}
           <p className="fine-print">
             Mesmas entradas e variante produzem o mesmo resultado. Gerar novamente pede outra
             solução da busca.
@@ -627,6 +889,28 @@ export function Generator() {
             <div className="error-notice" role="alert">
               {error}
             </div>
+          )}
+          {diagnostic && (
+            <Notice>
+              {diagnostic.available} candidatos por disponibilidade · {diagnostic.withMoves} com
+              movimentos elegíveis. {diagnostic.required.map((r) => r.reason).join(' ')}
+            </Notice>
+          )}
+          {diagnostic?.code === 'UNKNOWN_PROGRESS' && (
+            <Button
+              onClick={() => {
+                optIn.current = true;
+                setIgnore(true);
+                setDiagnostic(null);
+              }}
+            >
+              Permitir etapas desconhecidas e gerar
+            </Button>
+          )}
+          {result && (stale || signature !== resultSignature) && (
+            <Notice>
+              Resultado anterior: os critérios mudaram. Gere novamente para transferir a equipe.
+            </Notice>
           )}
           {result ? (
             <>
@@ -658,10 +942,14 @@ export function Generator() {
                   })}
                 </div>
                 <div className="button-row">
-                  <Button onClick={open}>
+                  <Button onClick={open} disabled={busy || stale || signature !== resultSignature}>
                     Ajustar no construtor <ArrowRight size={16} />
                   </Button>
-                  <Button onClick={generate} disabled={busy} variant="secondary">
+                  <Button
+                    onClick={() => void generate()}
+                    disabled={busy || conflicts.length > 0}
+                    variant="secondary"
+                  >
                     <RotateCw size={15} /> Outra combinação
                   </Button>
                 </div>
@@ -707,20 +995,24 @@ export function Generator() {
   );
 }
 export function SavedTeams() {
-  const { personal, catalog, setGame, setDraft, setEditTeamId, notify, refresh } = useHub();
+  const {
+    personal,
+    sessionStatus,
+    game,
+    catalog,
+    replaceTeam,
+    startNewTeam,
+    detachTeam,
+    notify,
+    refresh,
+  } = useHub();
   const router = useRouter();
-  const [busy, setBusy] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState<SavedTeam | null>(null);
   async function remove(id: string) {
-    setBusy(id);
-    try {
-      await api(`teams/${id}`, 'DELETE');
-      await refresh();
-      notify('Equipe excluída.');
-    } catch (e) {
-      notify((e as Error).message);
-    } finally {
-      setBusy(null);
-    }
+    await api(`teams/${id}`, 'DELETE');
+    detachTeam(id);
+    const synced = await refresh();
+    notify(synced ? 'Equipe excluída.' : 'Exclusão concluída; não foi possível atualizar a lista.');
   }
   return (
     <div>
@@ -729,14 +1021,18 @@ export function SavedTeams() {
         title="Boas ideias merecem ser guardadas."
         text="Suas equipes salvas, prontas para a próxima jornada."
         action={
-          <Button asChild>
-            <Link href="/equipes">
-              <Plus size={16} /> Nova equipe
-            </Link>
+          <Button
+            onClick={async () => {
+              if (await startNewTeam(game)) router.push('/equipes');
+            }}
+          >
+            <Plus size={16} /> Nova equipe
           </Button>
         }
       />
-      {!personal ? (
+      {!personal && sessionStatus !== 'visitor' ? (
+        <SessionGate />
+      ) : !personal ? (
         <EmptyState
           title="Seu laboratório está esperando"
           text="Entre na sua conta para salvar e recuperar suas equipes."
@@ -767,8 +1063,7 @@ export function SavedTeams() {
                 <button
                   aria-label={`Excluir equipe ${team.name}`}
                   className="icon-button danger"
-                  disabled={busy === team.id}
-                  onClick={() => remove(team.id)}
+                  onClick={() => setDeleting(team)}
                 >
                   <Trash2 size={16} />
                 </button>
@@ -788,14 +1083,18 @@ export function SavedTeams() {
               </div>
               <Button
                 variant="secondary"
-                onClick={() => {
-                  setGame(team.gameId);
-                  setDraft(
-                    team.members.map((m) => ({ ...m.config, formId: m.formId })),
-                    team.gameId,
-                  );
-                  setEditTeamId(team.id);
-                  router.push('/equipes');
+                onClick={async () => {
+                  const members = team.members.map((m) => ({ ...m.config, formId: m.formId }));
+                  if (
+                    await replaceTeam({
+                      ...newDraft(team.gameId),
+                      name: team.name,
+                      members,
+                      editTeamId: team.id,
+                      baseline: { name: team.name, members },
+                    })
+                  )
+                    router.push('/equipes');
                 }}
               >
                 Abrir no construtor <ArrowUpRight size={15} />
@@ -803,6 +1102,14 @@ export function SavedTeams() {
             </section>
           ))}
         </div>
+      )}
+      {deleting && (
+        <ConfirmDelete
+          kind="equipe"
+          name={deleting.name}
+          onCancel={() => setDeleting(null)}
+          onConfirm={() => remove(deleting.id)}
+        />
       )}
     </div>
   );

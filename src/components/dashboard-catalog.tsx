@@ -22,9 +22,12 @@ import {
   Users,
 } from 'lucide-react';
 import Link from 'next/link';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { usePathname, useSearchParams } from 'next/navigation';
+import { parseCatalogParams } from '@/lib/catalog-url';
+import { matchesPokemon } from '@/lib/ux-state';
 import { EmptyState, PokemonCard, PokemonImage } from './pokemon-ui';
-import { useHub } from './providers';
+import { SessionGate, useHub } from './providers';
 import { Button } from './ui/button';
 export function PageHeading({
   title,
@@ -408,25 +411,58 @@ export function Dashboard() {
   );
 }
 export function Catalog({ favorites = false }: { favorites?: boolean }) {
-  const { catalog, game, personal } = useHub();
-  const [search, setSearch] = useState('');
-  const [type, setType] = useState('');
-  const [secondary, setSecondary] = useState('');
-  const [generation, setGeneration] = useState('');
-  const [kind, setKind] = useState('');
-  const [sort, setSort] = useState('dex');
-  const [evolution, setEvolution] = useState('');
-  const [availability, setAvailability] = useState('');
-  const [page, setPage] = useState(1);
+  const { catalog, game, setGame, personal, sessionStatus } = useHub();
+  const params = useSearchParams();
+  const pathname = usePathname();
+  const raw = params.toString();
+  const filter = parseCatalogParams(new URLSearchParams(raw));
+  const {
+    q: search,
+    type,
+    secondary,
+    generation,
+    kind,
+    sort,
+    evolution,
+    availability,
+    page,
+  } = filter;
+  function setParam(key: string, value: string | number) {
+    const next = new URLSearchParams(window.location.search);
+    if (String(value)) next.set(key, String(value));
+    else next.delete(key);
+    if (key !== 'page') next.set('page', '1');
+    next.set('game', game);
+    next.delete('focus');
+    const url = pathname + '?' + next.toString();
+    if (key === 'q') window.history.replaceState(null, '', url);
+    else window.history.pushState(null, '', url);
+  }
+  const setSearch = (v: string) => setParam('q', v);
+  const setType = (v: string) => setParam('type', v);
+  const setSecondary = (v: string) => setParam('secondary', v);
+  const setGeneration = (v: string) => setParam('generation', v);
+  const setKind = (v: string) => setParam('kind', v);
+  const setSort = (v: string) => setParam('sort', v);
+  const setEvolution = (v: string) => setParam('evolution', v);
+  const setAvailability = (v: string) => setParam('availability', v);
+  const setPage = (v: number) => setParam('page', v);
+  useEffect(() => {
+    const selected = parseCatalogParams(new URLSearchParams(raw)).game;
+    if (selected) setGame(selected); /* URL is authoritative on navigation. */ // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [raw]);
+  useEffect(() => {
+    const focus = parseCatalogParams(new URLSearchParams(raw)).focus;
+    if (focus)
+      requestAnimationFrame(() => document.getElementById('pokemon-card-' + focus)?.focus());
+  }, [raw, catalog, personal]);
   const [expanded, setExpanded] = useState(false);
   const list = useMemo(() => {
     let list = catalog.filter(
       (p) =>
         canUse(p, game) &&
         (!favorites || personal?.favorites.includes(p.id)) &&
-        (!search ||
-          p.name.toLowerCase().includes(search.toLowerCase()) ||
-          String(p.speciesId) === search.replace('#', '')) &&
+        matchesPokemon(p, search) &&
         (!type || p.types.includes(type)) &&
         (!secondary || p.types[1] === secondary) &&
         (!generation || p.generation === Number(generation)) &&
@@ -463,7 +499,6 @@ export function Catalog({ favorites = false }: { favorites?: boolean }) {
   const actualPage = Math.min(page, maxPage);
   const update = (fn: () => void) => {
     fn();
-    setPage(1);
   };
   return (
     <div>
@@ -478,7 +513,9 @@ export function Catalog({ favorites = false }: { favorites?: boolean }) {
             : `Explore espécies, atributos e formas disponíveis em ${GAMES[game].name}.`
         }
       />
-      {favorites && !personal ? (
+      {favorites && !personal && sessionStatus !== 'visitor' ? (
+        <SessionGate />
+      ) : favorites && !personal ? (
         <EmptyState
           title="Sua coleção começa com uma conta"
           text="Entre para salvar seus Pokémon favoritos e encontrá-los em qualquer sessão."
@@ -603,13 +640,7 @@ export function Catalog({ favorites = false }: { favorites?: boolean }) {
               <button
                 className="text-link"
                 onClick={() => {
-                  setType('');
-                  setSecondary('');
-                  setGeneration('');
-                  setKind('');
-                  setEvolution('');
-                  setAvailability('');
-                  setSearch('');
+                  window.history.pushState(null, '', pathname + '?game=' + game);
                 }}
               >
                 Limpar filtros
@@ -628,7 +659,21 @@ export function Catalog({ favorites = false }: { favorites?: boolean }) {
           {list.length ? (
             <div className="pokemon-grid">
               {list.slice((actualPage - 1) * 36, actualPage * 36).map((p, i) => (
-                <PokemonCard key={p.id} pokemon={p} index={i} />
+                <PokemonCard
+                  key={p.id}
+                  pokemon={p}
+                  index={i}
+                  returnTo={
+                    pathname +
+                    '?' +
+                    new URLSearchParams({
+                      ...Object.fromEntries(params),
+                      game,
+                      page: String(actualPage),
+                      focus: String(p.id),
+                    }).toString()
+                  }
+                />
               ))}
             </div>
           ) : (

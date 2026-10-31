@@ -12,6 +12,7 @@ import {
   TYPES,
 } from '@/lib/engine';
 import { GAMES } from '@/lib/games';
+import { changeSlot, compactSlots, normalizeSearch, toSlots } from '@/lib/ux-state';
 import type { PokemonDetail } from '@/lib/repository';
 import {
   ArrowLeft,
@@ -29,20 +30,24 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { SectionHeading } from './dashboard-catalog';
 import { EmptyState, PokemonImage, StatBars, StatsRadar, TypeBadge } from './pokemon-ui';
-import { api, useHub, type SavedBuild } from './providers';
+import { api, SessionGate, useHub, type SavedBuild } from './providers';
 import { Button } from './ui/button';
 import { PokemonHero } from './pokemon-hero';
 import { getPokemonVisual } from '@/lib/pokemon-visual';
+import { catalogReturn } from '@/lib/catalog-url';
 export function useDetail(id: number | undefined, game: GameId) {
   const [detail, setDetail] = useState<PokemonDetail | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [requestKey, setRequestKey] = useState('');
+  const key = `${id ?? ''}:${game}`;
   useEffect(() => {
     if (!id) return;
     let active = true;
+    setRequestKey(`${id}:${game}`);
     setLoading(true);
     setError('');
     setDetail(null);
@@ -60,7 +65,11 @@ export function useDetail(id: number | undefined, game: GameId) {
       active = false;
     };
   }, [id, game]);
-  return { detail, loading, error };
+  return {
+    detail: requestKey === key ? detail : null,
+    loading: !!id && (loading || requestKey !== key),
+    error: requestKey === key ? error : '',
+  };
 }
 export function Notice({ children }: { children: React.ReactNode }) {
   return (
@@ -71,7 +80,8 @@ export function Notice({ children }: { children: React.ReactNode }) {
   );
 }
 export function DetailPage({ id }: { id: number }) {
-  const { catalog, game, setGame, personal, notify, draft, setDraft } = useHub();
+  const { catalog, game, setGame, personal, notify, draft, setDraft, privateDraftPending } =
+    useHub();
   const params = useSearchParams();
   const { detail, loading, error } = useDetail(id, game);
   const [tab, setTab] = useState('overview');
@@ -134,8 +144,11 @@ export function DetailPage({ id }: { id: number }) {
   }
   return (
     <div className="pokemon-detail-page" style={visual.style}>
-      <Link className="back-link" href="/pokedex">
-        <ArrowLeft size={15} /> Voltar à Pokédex
+      <Link className="back-link" href={catalogReturn(params.get('from'))}>
+        <ArrowLeft size={15} />{' '}
+        {catalogReturn(params.get('from')).startsWith('/favoritos')
+          ? 'Voltar aos favoritos'
+          : 'Voltar à Pokédex'}
       </Link>
       <PokemonHero pokemon={p} genus={detail.genus ?? null}>
         <div className="detail-game-options">
@@ -154,8 +167,11 @@ export function DetailPage({ id }: { id: number }) {
           ))}
         </div>
         <div className="button-row">
-          <Button onClick={add} disabled={!compatible}>
-            <Plus size={16} /> Adicionar à equipe
+          <Button
+            onClick={add}
+            disabled={!compatible || ['mega', 'gigantamax', 'battle'].includes(p.kind)}
+          >
+            <Plus size={16} /> Adicionar espécie à equipe
           </Button>
           <Button variant="secondary" asChild>
             <Link href={`/comparador?pokemon=${p.id}`}>
@@ -163,6 +179,12 @@ export function DetailPage({ id }: { id: number }) {
             </Link>
           </Button>
         </div>
+        {['mega', 'gigantamax', 'battle'].includes(p.kind) && (
+          <p className="fine-print">
+            Esta transformação é consultável. Para compor a equipe, escolha uma forma permanente na
+            aba Formas e obtenção.
+          </p>
+        )}
       </PokemonHero>
       <div className="detail-facts">
         <span>
@@ -428,7 +450,8 @@ export function DetailPage({ id }: { id: number }) {
               </>
             )}
             {tab === 'moves' && <MovesTable moves={detail.moves} game={game} />}{' '}
-            {tab === 'builds' && <BuildWorkbench detail={detail} />}{' '}
+            {tab === 'builds' &&
+              (privateDraftPending ? <SessionGate /> : <BuildWorkbench detail={detail} />)}{' '}
             {tab === 'availability' && (
               <>
                 <section className="panel">
@@ -545,7 +568,7 @@ export function MovesTable({ moves, game }: { moves: LegalMove[]; game: GameId }
       moves
         .filter(
           (m) =>
-            (!query || m.name.toLowerCase().includes(query.toLowerCase())) &&
+            (!query || normalizeSearch(m.name).includes(normalizeSearch(query))) &&
             (!type || m.type === type) &&
             (!category || m.category === category) &&
             (!method || m.methods.some((x) => x.method === method)),
@@ -559,6 +582,9 @@ export function MovesTable({ moves, game }: { moves: LegalMove[]; game: GameId }
         ),
     [moves, query, type, category, method, sort],
   );
+  useEffect(() => {
+    setPage(1);
+  }, [query, type, category, method, sort, game, moves]);
   const visible = list.slice(0, page * 30);
   return (
     <section className="panel">
@@ -706,12 +732,35 @@ export function MovesTable({ moves, game }: { moves: LegalMove[]; game: GameId }
           </tbody>
         </table>
       </div>
-      {!visible.length && (
-        <EmptyState
-          title="Nenhum movimento verificado neste recorte"
-          text="A base não completa lacunas usando learnsets de outro jogo."
-        />
-      )}
+      <p className="results-label">
+        {list.length} de {moves.length} movimentos
+      </p>
+      {!visible.length &&
+        (moves.length ? (
+          <EmptyState
+            title="Nenhum movimento corresponde aos filtros"
+            text="Altere a busca ou limpe os filtros para ver os movimentos cadastrados."
+            action={
+              <Button
+                variant="secondary"
+                onClick={() => {
+                  setQuery('');
+                  setType('');
+                  setCategory('');
+                  setMethod('');
+                  setPage(1);
+                }}
+              >
+                Limpar filtros
+              </Button>
+            }
+          />
+        ) : (
+          <EmptyState
+            title="Learnset ainda não registrado neste jogo"
+            text="A cobertura é desconhecida. A base não completa lacunas usando learnsets de outro jogo."
+          />
+        ))}
       {visible.length < list.length && (
         <Button className="load-more" variant="secondary" onClick={() => setPage(page + 1)}>
           Carregar mais movimentos <ChevronDown size={15} />
@@ -740,20 +789,31 @@ export function MemberEditor({
   member,
   onChange,
   detail: providedDetail,
+  onSuggest,
 }: {
   member: Member;
   onChange: (member: Member) => void;
   detail?: PokemonDetail;
+  onSuggest?: () => void;
 }) {
   const { game } = useHub();
   const remote = useDetail(providedDetail ? undefined : member.formId, game);
   const detail = providedDetail ?? remote.detail;
   const loading = !providedDetail && remote.loading;
   const error = !providedDetail && remote.error;
+  const [slots, setSlots] = useState(() => toSlots(member.moves));
+  const last = useRef(JSON.stringify([member.formId, game, member.moves]));
+  const signature = JSON.stringify([member.formId, game, member.moves]);
+  useEffect(() => {
+    if (last.current !== signature) {
+      setSlots(toSlots(member.moves));
+      last.current = signature;
+    }
+  }, [signature, member.moves]);
   if (loading) return <p className="muted">Consultando movimentos legais...</p>;
   if (error) return <Notice>{error}</Notice>;
   if (!detail) return null;
-  const selected = member.moves;
+  const selected = slots;
   const itemSuggestion = recommendItem(detail.pokemon, detail.items, game);
   const chosenItem = detail.items.find((i) => i.id === member.itemId);
   return (
@@ -766,10 +826,11 @@ export function MemberEditor({
               aria-label={`Movimento ${i + 1}`}
               value={selected[i] ?? ''}
               onChange={(e) => {
-                const moves = [...selected];
-                if (e.target.value) moves[i] = Number(e.target.value);
-                else moves.splice(i, 1);
-                onChange({ ...member, moves: moves.filter(Boolean) });
+                const next = changeSlot(slots, i, e.target.value ? Number(e.target.value) : null);
+                const moves = compactSlots(next);
+                setSlots(next);
+                last.current = JSON.stringify([member.formId, game, moves]);
+                onChange({ ...member, moves });
               }}
             >
               <option value="">Selecionar movimento</option>
@@ -852,6 +913,10 @@ export function MemberEditor({
           size="sm"
           variant="secondary"
           onClick={() => {
+            if (onSuggest) {
+              onSuggest();
+              return;
+            }
             const build = recommendBuild(detail.pokemon, detail.moves, game);
             onChange({ ...member, moves: build.moves.map((m) => m.id) });
           }}
@@ -898,30 +963,83 @@ export function MemberEditor({
   );
 }
 export function BuildWorkbench({ detail, saved }: { detail: PokemonDetail; saved?: SavedBuild }) {
-  const { game, notify, personal, refresh } = useHub();
-  const [style, setStyle] = useState<Style>((saved?.style as Style) ?? 'balanced');
-  const [buildId, setBuildId] = useState<string | undefined>(saved?.id);
-  const [buildName, setBuildName] = useState(saved?.name ?? detail.pokemon.name);
+  const {
+    game,
+    notify,
+    personal,
+    sessionStatus,
+    refresh,
+    buildDrafts,
+    setBuildDraft,
+    draft,
+    setDraft,
+  } = useHub();
+  const draftKey = `${game}:${detail.pokemon.id}:${saved?.id ?? 'new'}`;
+  const currentWorkbench = buildDrafts[`current:${game}`];
+  const restored =
+    buildDrafts[draftKey] ??
+    (saved &&
+    currentWorkbench?.buildId === saved.id &&
+    currentWorkbench.member?.formId === saved.formId
+      ? currentWorkbench
+      : undefined);
+  const [style, setStyle] = useState<Style>(
+    restored?.style ?? (saved?.style as Style) ?? 'balanced',
+  );
+  const buildId = restored ? restored.buildId : saved?.id;
+  const [buildName, setBuildName] = useState(restored?.name ?? saved?.name ?? detail.pokemon.name);
   const [manual, setManual] = useState<Member | null>(
-    saved
-      ? { ...saved.config, formId: saved.formId, moves: saved.moves.map((m) => m.moveId) }
-      : null,
+    restored
+      ? restored.member
+      : saved
+        ? { ...saved.config, formId: saved.formId, moves: saved.moves.map((m) => m.moveId) }
+        : null,
   );
   const [busy, setBusy] = useState(false);
+  const suggestionDialog = useRef<HTMLDialogElement>(null);
+  const transferDialog = useRef<HTMLDialogElement>(null);
+  const [transferring, setTransferring] = useState(false);
+  const [transferSlot, setTransferSlot] = useState<number | null>(null);
+  const [transferError, setTransferError] = useState('');
+  const [transferred, setTransferred] = useState(false);
+  const [transferSnapshot, setTransferSnapshot] = useState<Member | null>(null);
+  const mounted = useRef(true);
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+    };
+  }, []);
   const temporary = ['mega', 'gigantamax', 'battle'].includes(detail.pokemon.kind);
   const recommendation = useMemo(
     () => recommendBuild(detail.pokemon, detail.moves, game, style),
     [detail, game, style],
   );
-  const member =
-    manual?.formId === detail.pokemon.id
-      ? manual
-      : { formId: detail.pokemon.id, moves: recommendation.moves.map((m) => m.id) };
-  const moves = detail.moves.filter((m) => member.moves.includes(m.id));
+  const member = useMemo<Member>(
+    () =>
+      manual?.formId === detail.pokemon.id
+        ? manual
+        : { formId: detail.pokemon.id, moves: recommendation.moves.map((m) => m.id) },
+    [manual, detail.pokemon.id, recommendation],
+  );
+  const moves = member.moves.flatMap((id) => detail.moves.find((m) => m.id === id) ?? []);
   const evaluation = evaluateBuild(detail.pokemon, moves, game, style);
+  useEffect(() => {
+    const next = { name: buildName, member: manual, style, buildId };
+    if (JSON.stringify(buildDrafts[draftKey]) !== JSON.stringify(next))
+      setBuildDraft(draftKey, next);
+    const current = { ...next, member };
+    if (JSON.stringify(buildDrafts[`current:${game}`]) !== JSON.stringify(current))
+      setBuildDraft(`current:${game}`, current);
+  }, [buildName, manual, member, style, buildId, draftKey, buildDrafts, setBuildDraft, game]);
   async function save() {
+    if (busy) return;
     if (!personal) {
-      notify('Entre na sua conta para salvar builds.');
+      notify(
+        sessionStatus === 'visitor'
+          ? 'Entre na sua conta para salvar builds.'
+          : 'A sessão ainda não foi confirmada. Use Repetir para consultar sua conta.',
+      );
       return;
     }
     setBusy(true);
@@ -936,13 +1054,42 @@ export function BuildWorkbench({ detail, saved }: { detail: PokemonDetail; saved
           member,
         },
       );
-      setBuildId(result.id);
-      await refresh();
-      notify('Build salva na sua coleção.');
+      if (!mounted.current) return;
+      setBuildDraft(draftKey, { name: buildName, member: manual, style, buildId: result.id });
+      const synced = await refresh();
+      notify(
+        synced
+          ? 'Build salva na sua coleção.'
+          : 'Gravação concluída; não foi possível atualizar a lista. Não é necessário criar outra cópia.',
+      );
     } catch (e) {
       notify((e as Error).message);
     } finally {
       setBusy(false);
+    }
+  }
+  async function transfer(config: Member, slot: number | null) {
+    if (transferring) return;
+    setTransferring(true);
+    setTransferError('');
+    try {
+      await api('analyze', 'POST', { gameId: game, members: [config] });
+      if (!mounted.current) return;
+      if (slot === null && draft.length >= 6)
+        throw new Error('A equipe está cheia. Escolha um integrante para substituir.');
+      setDraft(
+        slot === null
+          ? [...draft, structuredClone(config)]
+          : draft.map((m, i) => (i === slot ? structuredClone(config) : m)),
+        game,
+      );
+      transferDialog.current?.close();
+      setTransferred(true);
+      notify('Build adicionada ao rascunho da equipe.');
+    } catch (e) {
+      if (mounted.current) setTransferError((e as Error).message);
+    } finally {
+      if (mounted.current) setTransferring(false);
     }
   }
   return (
@@ -964,7 +1111,6 @@ export function BuildWorkbench({ detail, saved }: { detail: PokemonDetail; saved
           value={style}
           onChange={(e) => {
             setStyle(e.target.value as Style);
-            setManual(null);
           }}
         >
           {(['balanced', 'offensive', 'defensive', 'support'] as Style[]).map((s) => (
@@ -977,7 +1123,32 @@ export function BuildWorkbench({ detail, saved }: { detail: PokemonDetail; saved
           <Bookmark size={15} />
           {busy ? 'Salvando...' : buildId ? 'Atualizar build' : 'Salvar build'}
         </Button>
+        <Button
+          variant="secondary"
+          disabled={temporary || transferring || !moves.length}
+          onClick={() => {
+            const snapshot = structuredClone(member);
+            setTransferSnapshot(snapshot);
+            setTransferred(false);
+            setTransferError('');
+            setTransferSlot(null);
+            if (draft.length >= 6) transferDialog.current?.showModal();
+            else void transfer(snapshot, null);
+          }}
+        >
+          Adicionar esta build à equipe
+        </Button>
+        {transferred && (
+          <Link className="text-link" href="/equipes">
+            Abrir construtor
+          </Link>
+        )}
       </div>
+      {transferError && (
+        <p role="alert" className="error-notice">
+          {transferError}
+        </p>
+      )}
       <div className="two-column build-columns">
         <section className="panel">
           <SectionHeading
@@ -992,7 +1163,15 @@ export function BuildWorkbench({ detail, saved }: { detail: PokemonDetail; saved
               maxLength={80}
             />
           </label>
-          <MemberEditor member={member} onChange={setManual} detail={detail} />
+          <Button variant="secondary" onClick={() => suggestionDialog.current?.showModal()}>
+            Aplicar sugestão deste estilo
+          </Button>
+          <MemberEditor
+            member={member}
+            onChange={setManual}
+            detail={detail}
+            onSuggest={() => suggestionDialog.current?.showModal()}
+          />
           <div className="build-explanations">
             {moves.map((m) => (
               <div key={m.id}>
@@ -1076,6 +1255,76 @@ export function BuildWorkbench({ detail, saved }: { detail: PokemonDetail; saved
           </section>
         </div>
       </div>
+      <dialog
+        ref={suggestionDialog}
+        className="import-dialog"
+        aria-label="Aplicar sugestão deste estilo"
+      >
+        <h2>Aplicar sugestão de {styleLabel(style)}?</h2>
+        <p>Atual: {moves.map((m) => m.name).join(', ') || 'Sem movimentos'}.</p>
+        <p>Sugestão: {recommendation.moves.map((m) => m.name).join(', ')}.</p>
+        <div className="button-row">
+          <Button autoFocus variant="secondary" onClick={() => suggestionDialog.current?.close()}>
+            Cancelar
+          </Button>
+          <Button
+            onClick={() => {
+              setManual({ ...member, moves: recommendation.moves.map((m) => m.id) });
+              suggestionDialog.current?.close();
+            }}
+          >
+            Aplicar movimentos
+          </Button>
+        </div>
+      </dialog>
+      <dialog
+        ref={transferDialog}
+        className="import-dialog"
+        aria-label="Adicionar build ao time cheio"
+        onCancel={(e) => {
+          if (transferring) e.preventDefault();
+        }}
+      >
+        <h2>Qual integrante será substituído?</h2>
+        <p>
+          A build de {detail.pokemon.name} substituirá somente a configuração do slot escolhido.
+        </p>
+        <label>
+          Integrante
+          <select
+            aria-label="Integrante para substituir"
+            disabled={transferring}
+            value={transferSlot ?? ''}
+            onChange={(e) => setTransferSlot(e.target.value === '' ? null : Number(e.target.value))}
+          >
+            <option value="">Escolha o slot</option>
+            {draft.map((m, i) => (
+              <option key={i} value={i}>
+                {i + 1} · #{m.formId}
+              </option>
+            ))}
+          </select>
+        </label>
+        {transferError && <p role="alert">{transferError}</p>}
+        <div className="button-row">
+          <Button
+            autoFocus
+            variant="secondary"
+            disabled={transferring}
+            onClick={() => transferDialog.current?.close()}
+          >
+            Cancelar
+          </Button>
+          <Button
+            disabled={transferring || transferSlot === null}
+            onClick={() => {
+              if (transferSnapshot) void transfer(transferSnapshot, transferSlot);
+            }}
+          >
+            Confirmar substituição
+          </Button>
+        </div>
+      </dialog>
     </div>
   );
 }
@@ -1087,51 +1336,4 @@ export function styleLabel(style: Style) {
     support: 'Suporte',
   }[style];
 }
-export function PokemonPicker({
-  value,
-  onChange,
-  label = 'Pokémon',
-  exclude = [],
-}: {
-  value: number | undefined;
-  onChange: (id: number) => void;
-  label?: string;
-  exclude?: number[];
-}) {
-  const { catalog, game } = useHub();
-  const [q, setQ] = useState('');
-  const available = catalog.filter(
-    (p) =>
-      canUse(p, game) &&
-      !exclude.includes(p.id) &&
-      (!q || p.name.toLowerCase().includes(q.toLowerCase())),
-  );
-  return (
-    <div className="pokemon-picker">
-      <label className="search-field">
-        <Search size={15} />
-        <input
-          value={q}
-          aria-label={`Filtrar ${label}`}
-          onChange={(e) => setQ(e.target.value)}
-          placeholder="Filtrar por nome..."
-        />
-      </label>
-      <label className="picker-label">
-        {label}
-        <select
-          aria-label={label}
-          value={value ?? ''}
-          onChange={(e) => e.target.value && onChange(Number(e.target.value))}
-        >
-          <option value="">Selecionar Pokémon</option>
-          {available.map((p) => (
-            <option key={p.id} value={p.id}>
-              {p.name} · #{p.speciesId}
-            </option>
-          ))}
-        </select>
-      </label>
-    </div>
-  );
-}
+export { PokemonPicker } from './pokemon-picker';

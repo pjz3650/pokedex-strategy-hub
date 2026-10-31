@@ -1,3 +1,4 @@
+import { selectPokemon } from './helpers';
 import { expect, test } from '@playwright/test';
 import { readFile } from 'node:fs/promises';
 
@@ -60,10 +61,7 @@ test('seis integrantes conservam edição, exportação e importação', async (
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.goto('/equipes');
   for (const id of ['1', '6', '25', '94', '448', '248']) {
-    await page
-      .getByLabel('Adicionar integrante', { exact: true })
-      .filter({ visible: true })
-      .selectOption(id);
+    await selectPokemon(page, 'Adicionar integrante', id);
     await expect(page.locator('.team-slot.filled')).toHaveCount(
       ['1', '6', '25', '94', '448', '248'].indexOf(id) + 1,
     );
@@ -81,11 +79,13 @@ test('seis integrantes conservam edição, exportação e importação', async (
   await page.getByRole('button', { name: 'Importar', exact: true }).click();
   await page.getByLabel('JSON da equipe', { exact: true }).filter({ visible: true }).fill(json);
   await page.screenshot({
-    path: `docs/type-study/after/${testInfo.project.name}-import-dialog.png`,
+    path: testInfo.outputPath('import-dialog.png'),
     animations: 'disabled',
   });
   await page.getByRole('button', { name: 'Validar e importar', exact: true }).click();
-  await expect(page.getByRole('status')).toContainText('Equipe importada e validada');
+  await page.getByRole('button', { name: 'Confirmar importação', exact: true }).click();
+  await page.getByRole('button', { name: 'Descartar e abrir', exact: true }).click();
+  await expect(page.locator('.toast')).toContainText('Equipe importada e validada');
   await expect(page.locator('.team-slot.filled')).toHaveCount(6);
   await page.getByRole('button', { name: 'Fechar aviso', exact: true }).click();
   await page.evaluate(async () => {
@@ -99,7 +99,7 @@ test('seis integrantes conservam edição, exportação e importação', async (
   await expect(page.locator('.analysis-status:visible')).toContainText('Análise atualizada');
   await page.evaluate(() => window.scrollTo({ top: 0, behavior: 'instant' }));
   await page.screenshot({
-    path: `docs/type-study/after/${testInfo.project.name}-six-member-team.png`,
+    path: testInfo.outputPath('six-member-team.png'),
     fullPage: true,
     animations: 'disabled',
   });
