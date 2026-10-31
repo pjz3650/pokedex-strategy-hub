@@ -5797,3 +5797,14 @@ a {
     line-height: 1.1;
   }
 }
+
+/* Suggestions reuse existing Type Study surfaces and focus colors. */
+.pokemon-picker { position: relative; min-width: 0; }
+.pokemon-picker > small { display: block; color: var(--muted); }
+.picker-popup { position: absolute; z-index: 20; top: 100%; inset-inline: 0; padding: 8px; background: var(--surface); border: 1px solid var(--border); border-radius: 4px; max-height: min(360px, 45dvh); overflow: auto; }
+.picker-popup ul { list-style: none; padding: 0; margin: 0; }
+.picker-popup [role=option] { padding: 10px; min-height: 44px; cursor: pointer; border-bottom: 1px solid var(--border); overflow-wrap: anywhere; }
+.picker-popup [role=option] small { display: block; color: var(--muted); }
+.picker-popup [role=option].active { outline: 2px solid var(--focus-ring); outline-offset: -2px; background: var(--surface-2); }
+.picker-popup [aria-disabled=true] { cursor: default; }
+.picker-popup a { text-decoration: underline; }

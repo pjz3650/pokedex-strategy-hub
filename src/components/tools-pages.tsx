@@ -22,12 +22,37 @@ import { useEffect, useRef, useState } from 'react';
 import { PageHeading, SectionHeading } from './dashboard-catalog';
 import { BuildWorkbench, Notice, PokemonPicker, useDetail } from './pokemon-detail';
 import { EmptyState, PokemonImage, StatBars, StatsRadar, TypeBadge } from './pokemon-ui';
-import { api, useHub, type SavedBuild } from './providers';
+import { api, SessionGate, useHub, type SavedBuild } from './providers';
+import { ConfirmDelete } from './confirm-delete';
+import { useResource } from './use-resource';
 import { Button } from './ui/button';
 export function Analyzer({ builds = false }: { builds?: boolean }) {
-  const { catalog, game, setGame, personal, notify, refresh } = useHub();
+  const {
+    catalog,
+    game,
+    setGame,
+    personal,
+    sessionStatus,
+    notify,
+    refresh,
+    detachBuild,
+    buildDrafts,
+  } = useHub();
+  const [deleting, setDeleting] = useState<SavedBuild | null>(null);
   const [editing, setEditing] = useState<SavedBuild | undefined>();
   const [selected, setSelected] = useState<number>(448);
+  const resumed = useRef({ game, done: false });
+  useEffect(() => {
+    if (resumed.current.game !== game) resumed.current = { game, done: false };
+    const current = buildDrafts[`current:${game}`];
+    if (!resumed.current.done && current?.member) {
+      resumed.current.done = true;
+      setSelected(current.member.formId);
+      setEditing(
+        current.buildId ? personal?.builds.find((b) => b.id === current.buildId) : undefined,
+      );
+    }
+  }, [game, buildDrafts, personal]);
   const eligible = catalog.filter((p) => canUse(p, game));
   const id = eligible.some((p) => p.id === selected) ? selected : eligible[0]?.id;
   const { detail, loading, error } = useDetail(id, game);
@@ -42,6 +67,7 @@ export function Analyzer({ builds = false }: { builds?: boolean }) {
         <PokemonPicker
           value={id}
           onChange={(id) => {
+            resumed.current = { game, done: true };
             setSelected(id);
             setEditing(undefined);
           }}
@@ -93,6 +119,7 @@ export function Analyzer({ builds = false }: { builds?: boolean }) {
                   size="sm"
                   variant="secondary"
                   onClick={() => {
+                    resumed.current = { game: b.gameId, done: true };
                     setGame(b.gameId);
                     setSelected(b.formId);
                     setEditing(b);
@@ -107,15 +134,7 @@ export function Analyzer({ builds = false }: { builds?: boolean }) {
                 <button
                   className="icon-button danger"
                   aria-label={`Excluir build ${b.name}`}
-                  onClick={async () => {
-                    try {
-                      await api(`builds/${b.id}`, 'DELETE');
-                      await refresh();
-                      notify('Build excluída.');
-                    } catch (e) {
-                      notify((e as Error).message);
-                    }
-                  }}
+                  onClick={() => setDeleting(b)}
                 >
                   <Trash2 size={16} />
                 </button>
@@ -125,6 +144,25 @@ export function Analyzer({ builds = false }: { builds?: boolean }) {
             <p className="muted">Você ainda não salvou builds.</p>
           )}
         </section>
+      )}
+      {builds && !personal && sessionStatus !== 'visitor' && <SessionGate />}
+      {deleting && (
+        <ConfirmDelete
+          kind="build"
+          name={deleting.name}
+          onCancel={() => setDeleting(null)}
+          onConfirm={async () => {
+            await api(`builds/${deleting.id}`, 'DELETE');
+            detachBuild(deleting.id);
+            if (editing?.id === deleting.id) setEditing(undefined);
+            const synced = await refresh();
+            notify(
+              synced
+                ? 'Build excluída. Conteúdo preservado como cópia local.'
+                : 'Exclusão concluída; não foi possível atualizar a lista.',
+            );
+          }}
+        />
       )}
     </div>
   );
@@ -503,46 +541,77 @@ export function Tiers() {
   );
 }
 export function Assistant() {
-  const { catalog, game, personal } = useHub();
+  const { catalog, game, personal, refresh } = useHub();
   const [selected, setSelected] = useState(448);
   const pool = catalog.filter((p) => canUse(p, game));
   const id = pool.some((p) => p.id === selected) ? selected : pool[0]?.id;
   const [question, setQuestion] = useState('');
-  const [messages, setMessages] = useState<{ role: string; content: string }[]>([]);
+  type Message = {
+    role: string;
+    content: string;
+    context?: { gameId?: keyof typeof GAMES; formId?: number } | null;
+  };
+  type Submission = {
+    formId: number;
+    gameId: keyof typeof GAMES;
+    question: string;
+    annotation: string;
+  };
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [failed, setFailed] = useState<Submission | null>(null);
+  const pending = useRef(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const end = useRef<HTMLDivElement>(null);
   const analysisRequest = useRef(0);
-  useEffect(() => {
-    analysisRequest.current++;
-    setBusy(false);
-    setMessages([]);
-    setError('');
-  }, [game]);
+  useEffect(
+    () => () => {
+      analysisRequest.current++;
+    },
+    [],
+  );
   useEffect(() => {
     end.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   }, [messages, busy]);
-  async function send(e?: React.FormEvent) {
+  async function send(e?: React.FormEvent, retry?: Submission) {
     e?.preventDefault();
-    if (!id || busy) return;
+    if ((!id && !retry) || pending.current) return;
+    const snapshot: Submission = retry ?? {
+      formId: id!,
+      gameId: game,
+      question: question.trim() || 'Gerar análise determinística do Pokémon selecionado.',
+      annotation: question,
+    };
     const requestId = ++analysisRequest.current;
+    pending.current = true;
     setBusy(true);
     setError('');
-    const prompt = question || 'Gerar análise determinística do Pokémon selecionado.';
-    setMessages((m) => [...m, { role: 'user', content: prompt }]);
-    setQuestion('');
+    setFailed(null);
     try {
       const r = await api<{ answer: string }>('assistant', 'POST', {
-        gameId: game,
-        formId: id,
-        question: prompt,
+        gameId: snapshot.gameId,
+        formId: snapshot.formId,
+        question: snapshot.question,
       });
-      if (requestId === analysisRequest.current)
-        setMessages((m) => [...m, { role: 'assistant', content: r.answer }]);
+      if (requestId !== analysisRequest.current) return;
+      const context = { formId: snapshot.formId, gameId: snapshot.gameId };
+      setMessages((m) => [
+        ...m,
+        { role: 'user', content: snapshot.question, context },
+        { role: 'assistant', content: r.answer, context },
+      ]);
+      setQuestion((current) => (current === snapshot.annotation ? '' : current));
+      if (personal?.user.preferences.history) await refresh();
     } catch (e) {
-      if (requestId === analysisRequest.current) setError((e as Error).message);
+      if (requestId === analysisRequest.current) {
+        setError((e as Error).message);
+        setFailed(snapshot);
+      }
     } finally {
-      if (requestId === analysisRequest.current) setBusy(false);
+      if (requestId === analysisRequest.current) {
+        pending.current = false;
+        setBusy(false);
+      }
     }
   }
   return (
@@ -557,7 +626,7 @@ export function Assistant() {
           <span className="promo-icon">
             <MessageSquare size={22} />
           </span>
-          <h2>O contexto vem primeiro.</h2>
+          <h2>Contexto da próxima análise</h2>
           <p>Selecione um Pokémon para receber uma análise baseada em dados do jogo.</p>
           <PokemonPicker value={id} onChange={setSelected} label="Pokémon em contexto" />
           <span className="outline-tag">{GAMES[game].short}</span>
@@ -600,7 +669,15 @@ export function Assistant() {
             )}
             {messages.map((m, i) => (
               <div key={i} className={`chat-message ${m.role}`}>
-                <span>{m.role === 'user' ? 'Você' : 'Motor estratégico'}</span>
+                <span>
+                  {m.role === 'user' ? 'Você' : 'Motor estratégico'} ·{' '}
+                  {m.context?.formId && m.context.gameId && GAMES[m.context.gameId]
+                    ? (catalog.find((p) => p.id === m.context!.formId)?.name ??
+                        '#' + m.context.formId) +
+                      ' / ' +
+                      GAMES[m.context.gameId].short
+                    : 'Origem não registrada'}
+                </span>
                 <p>{m.content}</p>
               </div>
             ))}
@@ -611,7 +688,23 @@ export function Assistant() {
             )}
             {error && (
               <div className="error-notice" role="alert">
-                {error}
+                {error}{' '}
+                {failed && (
+                  <>
+                    <p>
+                      Repetir a análise de{' '}
+                      {catalog.find((p) => p.id === failed.formId)?.name ?? '#' + failed.formId} /{' '}
+                      {GAMES[failed.gameId].short}, com a anotação original.
+                    </p>
+                    <Button
+                      variant="secondary"
+                      disabled={busy}
+                      onClick={() => void send(undefined, failed)}
+                    >
+                      Tentar novamente
+                    </Button>
+                  </>
+                )}
               </div>
             )}
             <div ref={end} />
@@ -645,8 +738,7 @@ type Source = {
   confidence: string;
 };
 export function Sources() {
-  const [sources, setSources] = useState<Source[]>([]);
-  const [health, setHealth] = useState<{
+  type Health = {
     database: string;
     engine: string;
     coverage: {
@@ -658,16 +750,11 @@ export function Sources() {
       verifiedMoveProperties: number;
     }[];
     lastImport: { commit: string; finishedAt: string; counts: Record<string, number> } | null;
-  } | null>(null);
-  const [error, setError] = useState('');
-  useEffect(() => {
-    Promise.all([api<Source[]>('sources'), api<NonNullable<typeof health>>('health')])
-      .then(([s, h]) => {
-        setSources(s);
-        setHealth(h);
-      })
-      .catch((e) => setError(e.message));
-  }, []);
+  };
+  const sourceResource = useResource<Source[]>('sources');
+  const healthResource = useResource<Health>('health');
+  const sources = sourceResource.data;
+  const health = healthResource.data;
   return (
     <div className="sources-page">
       <PageHeading
@@ -675,19 +762,53 @@ export function Sources() {
         title="Saiba de onde vem cada escolha."
         text="Procedência, cobertura e limites da base de dados e do motor."
       />
-      {error && <Notice>{error}</Notice>}
+      {sourceResource.error && (
+        <div className="error-notice" role="alert">
+          Não foi possível consultar as fontes. {sources ? 'Último conteúdo carregado.' : ''}{' '}
+          <Button
+            variant="secondary"
+            disabled={sourceResource.loading}
+            onClick={() => void sourceResource.retry()}
+          >
+            Repetir fontes
+          </Button>
+        </div>
+      )}
+      {healthResource.error && (
+        <div className="error-notice" role="alert">
+          Não foi possível consultar o estado.{' '}
+          <Button
+            variant="secondary"
+            disabled={healthResource.loading}
+            onClick={() => void healthResource.retry()}
+          >
+            Repetir estado
+          </Button>
+        </div>
+      )}
+      {(sourceResource.loading || healthResource.loading) && (
+        <p role="status">Consultando recursos...</p>
+      )}
       <div className="metrics-strip">
         <div>
           <ShieldCheck size={20} />
           <span>
-            <b>{health?.database === 'ok' ? 'Conectado' : 'Consultando...'}</b>
+            <b>
+              {healthResource.loading
+                ? 'Consultando...'
+                : healthResource.error
+                  ? 'Estado desconhecido'
+                  : health?.database === 'ok'
+                    ? 'Conectado'
+                    : 'Estado desconhecido'}
+            </b>
             <small>PostgreSQL local</small>
           </span>
         </div>
         <div>
           <BookOpen size={20} />
           <span>
-            <b>{sources.length}</b>
+            <b>{sources?.length ?? '—'}</b>
             <small>Fontes registradas</small>
           </span>
         </div>
@@ -775,7 +896,7 @@ export function Sources() {
           title="Fontes da base local"
           caption="Referências factuais não concedem direitos sobre marcas, artes ou textos editoriais."
         />
-        {sources.map((s) => (
+        {sources?.map((s) => (
           <div className="source-row" key={s.id}>
             <span className="source-icon">
               <BookOpen size={19} />

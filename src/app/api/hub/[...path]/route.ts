@@ -11,6 +11,7 @@ role,
 import { getCatalog,getDataCoverage,getDetail,getGameMovePool } from '@/lib/repository';
 import { checkOrigin,HttpError,parseBody,rateLimit } from '@/lib/security';
 import { validateMembers } from '@/lib/team-service';
+import { diagnoseGeneration } from '@/lib/generation-ux';
 import {
 buildSchema,
 gameSchema,
@@ -184,12 +185,10 @@ async function handle(request: Request, context: Context) {
     try {
       return json(generateTeam(pool, data.gameId, data));
     } catch (error) {
-      throw new HttpError(
-        400,
-        error instanceof Error
-          ? error.message
-          : 'Não foi possível gerar uma equipe com estes critérios.',
-      );
+      const details = diagnoseGeneration(pool, data.gameId, data);
+      return json({ error: details.code === 'UNKNOWN_PROGRESS'
+        ? 'Não há dados de etapas verificados suficientes para garantir obtenção. Mudar o tamanho pode não resolver. Você pode permitir etapas desconhecidas explicitamente.'
+        : error instanceof Error ? error.message : 'Não foi possível gerar uma equipe com estes critérios.', code: details.code, details }, 400);
     }
   }
   if (resource === 'assistant' && method === 'POST') {

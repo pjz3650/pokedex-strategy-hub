@@ -1,13 +1,25 @@
+import 'dotenv/config';
+import { PrismaClient } from '@prisma/client';
+import { selectPokemon } from './helpers';
 import { expect, test } from '@playwright/test';
 import { randomBytes } from 'node:crypto';
-const origin = 'http://127.0.0.1:3000';
+const origin = process.env.POKETACTICS_TEST_URL ?? 'http://127.0.0.1:3000';
+const syntheticAccounts = new Set<string>();
+test.afterEach(async () => {
+  if (!syntheticAccounts.size) return;
+  const db = new PrismaClient();
+  try {
+    await db.user.deleteMany({ where: { email: { in: [...syntheticAccounts] } } });
+    syntheticAccounts.clear();
+  } finally {
+    await db.$disconnect();
+  }
+});
 
 test('Tyranitar e Mega Tyranitar exibem builds e análise de Z-A', async ({ page }) => {
   await page.goto('/builds');
   await page.getByLabel('Jogo selecionado').filter({ visible: true }).selectOption('za');
-  await page
-    .getByRole('combobox', { name: 'Pokémon para analisar', exact: true })
-    .selectOption('248');
+  await selectPokemon(page, 'Pokémon para analisar', '248');
   await expect(page.getByRole('heading', { name: 'Tyranitar', exact: true })).toBeVisible();
   await expect(
     page.getByLabel('Movimento 1', { exact: true }).filter({ visible: true }),
@@ -15,9 +27,7 @@ test('Tyranitar e Mega Tyranitar exibem builds e análise de Z-A', async ({ page
   await expect(
     page.getByLabel('Movimento 4', { exact: true }).filter({ visible: true }),
   ).not.toHaveValue('');
-  await page
-    .getByRole('combobox', { name: 'Pokémon para analisar', exact: true })
-    .selectOption('10049');
+  await selectPokemon(page, 'Pokémon para analisar', '10049');
   await expect(page.getByRole('heading', { name: 'Tyranitar · Mega', exact: true })).toBeVisible();
   await expect(
     page.getByLabel('Movimento 1', { exact: true }).filter({ visible: true }),
@@ -27,9 +37,7 @@ test('Tyranitar e Mega Tyranitar exibem builds e análise de Z-A', async ({ page
   ).not.toHaveValue('');
   await expect(page.getByRole('button', { name: 'Salvar build' })).toBeDisabled();
   await page.goto('/analisador');
-  await page
-    .getByRole('combobox', { name: 'Pokémon para analisar', exact: true })
-    .selectOption('248');
+  await selectPokemon(page, 'Pokémon para analisar', '248');
   await expect(
     page.getByLabel('Movimento 1', { exact: true }).filter({ visible: true }),
   ).not.toHaveValue('');
@@ -77,6 +85,7 @@ test('layout sem overflow horizontal e menu mobile funcional', async ({ page, is
 test('registro, login, equipes, builds, favoritos e autorização', async ({ page, request }) => {
   const suffix = randomBytes(5).toString('hex');
   const email = `e2e-${suffix}@example.test`;
+  syntheticAccounts.add(email);
   const password = `Test-${randomBytes(14).toString('hex')}`;
   await page.goto('/perfil');
   await page.getByRole('button', { name: 'Criar conta', exact: true }).click();
@@ -89,10 +98,7 @@ test('registro, login, equipes, builds, favoritos e autorização', async ({ pag
   await page.getByRole('button', { name: 'Criar minha conta' }).click();
   await expect(page.getByRole('heading', { name: 'Sua jornada, suas escolhas.' })).toBeVisible();
   await page.goto('/equipes');
-  await page
-    .getByLabel('Adicionar integrante', { exact: true })
-    .filter({ visible: true })
-    .selectOption('448');
+  await selectPokemon(page, 'Adicionar integrante', '448');
   await page.getByRole('button', { name: 'Sugerir movimentos' }).click();
   await page.getByLabel('Nome da equipe').filter({ visible: true }).fill(`Teste ${suffix}`);
   await page.getByRole('button', { name: 'Salvar equipe', exact: true }).click();
@@ -109,6 +115,7 @@ test('registro, login, equipes, builds, favoritos e autorização', async ({ pag
   });
   expect(unauthorized.status()).toBe(401);
   const otherEmail = `other-${suffix}@example.test`;
+  syntheticAccounts.add(otherEmail);
   expect(
     (
       await request.post('/api/hub/register', {
@@ -256,7 +263,7 @@ test('geração real, formas e capturas de validação', async ({ page, request 
     page.getByRole('heading', { name: 'Toda grande equipe começa aqui.' }),
   ).toBeVisible();
   await page.screenshot({
-    path: `docs/screenshots/dashboard-${testInfo.project.name}.png`,
+    path: testInfo.outputPath('dashboard.png'),
     fullPage: true,
   });
 });

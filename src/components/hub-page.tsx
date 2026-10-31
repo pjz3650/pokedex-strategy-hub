@@ -1,13 +1,15 @@
 'use client';
 import { AccountPage } from './account-page';
-import { Catalog,Dashboard } from './dashboard-catalog';
+import { Catalog, Dashboard } from './dashboard-catalog';
 import { DetailPage } from './pokemon-detail';
 import { EmptyState } from './pokemon-ui';
-import { useHub } from './providers';
-import { Generator,SavedTeams,TeamBuilder } from './team-pages';
-import { Analyzer,Assistant,Comparator,Sources,Tiers } from './tools-pages';
+import { SessionGate, useHub } from './providers';
+import { Generator, SavedTeams, TeamBuilder } from './team-pages';
+import { Analyzer, Assistant, Comparator, Sources, Tiers } from './tools-pages';
 export function HubPage({ section, pokemonId }: { section: string; pokemonId?: number }) {
-  const { catalog } = useHub();
+  const { catalog, privateDraftPending } = useHub();
+  if (privateDraftPending && ['equipes', 'analisador', 'builds'].includes(section))
+    return <SessionGate />;
   if (!catalog.length)
     return (
       <EmptyState

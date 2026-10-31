@@ -1,5 +1,6 @@
 'use client';
 import { GAMES } from '@/lib/games';
+import { matchesPokemon } from '@/lib/ux-state';
 import {
   ArrowUpRight,
   BookOpen,
@@ -108,12 +109,7 @@ export function Shell({ children }: { children: ReactNode }) {
   }, []);
   const matches = query.trim()
     ? catalog
-        .filter(
-          (p) =>
-            p.availability.some((a) => a.gameId === game) &&
-            (p.name.toLowerCase().includes(query.toLowerCase()) ||
-              String(p.speciesId) === query.replace('#', '')),
-        )
+        .filter((p) => p.availability.some((a) => a.gameId === game) && matchesPokemon(p, query))
         .slice(0, 8)
     : [];
   const current =
