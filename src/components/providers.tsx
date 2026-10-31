@@ -1,7 +1,7 @@
 'use client';
-import type { GameId,Member,Pokemon } from '@/lib/contracts';
+import type { GameId, Member, Pokemon } from '@/lib/contracts';
 import { useRouter } from 'next/navigation';
-import { createContext,useCallback,useContext,useEffect,useState,type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react';
 type SavedTeam = {
   id: string;
   name: string;
@@ -52,6 +52,7 @@ type HubContext = {
   game: GameId;
   setGame: (game: GameId) => void;
   personal: Personal | null;
+  personalLoading: boolean;
   refresh: () => Promise<void>;
   notify: (text: string) => void;
   draft: Member[];
@@ -66,8 +67,10 @@ export function HubProvider({ catalog, children }: { catalog: Pokemon[]; childre
   const router = useRouter();
   const [game, setGameState] = useState<GameId>('sword');
   const [personal, setPersonal] = useState<Personal | null>(null);
+  const [personalLoading, setPersonalLoading] = useState(true);
   const [draft, setDraftState] = useState<Member[]>([]);
-  const [theme, setThemeState] = useState<'dark' | 'light'>('dark');
+  const [theme, setThemeState] = useState<'dark' | 'light'>('light');
+  const [themeReady, setThemeReady] = useState(false);
   const [notice, setNotice] = useState('');
   const [editTeamId, setEditTeamId] = useState<string | null>(null);
   const notify = useCallback((text: string) => {
@@ -79,11 +82,14 @@ export function HubProvider({ catalog, children }: { catalog: Pokemon[]; childre
     return () => clearTimeout(id);
   }, [notice]);
   const refresh = useCallback(async () => {
+    setPersonalLoading(true);
     try {
       const value = await api<Personal>('me');
       setPersonal(value);
     } catch {
       setPersonal(null);
+    } finally {
+      setPersonalLoading(false);
     }
   }, []);
   useEffect(() => {
@@ -91,7 +97,8 @@ export function HubProvider({ catalog, children }: { catalog: Pokemon[]; childre
     const g = localStorage.getItem('hub-game');
     if (g === 'sword' || g === 'arceus' || g === 'za') setGameState(g);
     const t = localStorage.getItem('hub-theme');
-    if (t === 'light') setThemeState(t);
+    if (t === 'light' || t === 'dark') setThemeState(t);
+    setThemeReady(true);
     try {
       const saved = JSON.parse(sessionStorage.getItem('hub-draft') ?? 'null');
       if (saved && Array.isArray(saved.members) && ['sword', 'arceus', 'za'].includes(saved.game)) {
@@ -101,9 +108,10 @@ export function HubProvider({ catalog, children }: { catalog: Pokemon[]; childre
     } catch {}
   }, [refresh]);
   useEffect(() => {
+    if (!themeReady) return;
     document.documentElement.dataset.theme = theme;
     localStorage.setItem('hub-theme', theme);
-  }, [theme]);
+  }, [theme, themeReady]);
   const setGame = (next: GameId) => {
     if (next !== game) {
       setDraftState([]);
@@ -125,6 +133,7 @@ export function HubProvider({ catalog, children }: { catalog: Pokemon[]; childre
         game,
         setGame,
         personal,
+        personalLoading,
         refresh,
         notify,
         draft,
@@ -136,7 +145,12 @@ export function HubProvider({ catalog, children }: { catalog: Pokemon[]; childre
       }}
     >
       {children}
-      <div className={`toast ${notice ? 'visible' : ''}`} role="status">
+      <div
+        className={`toast ${notice ? 'visible' : ''}`}
+        role="status"
+        inert={!notice}
+        aria-hidden={!notice}
+      >
         {notice}
         <button onClick={() => setNotice('')} aria-label="Fechar aviso">
           ×

@@ -2,6 +2,7 @@
 import type { Pokemon } from '@/lib/contracts';
 import { analyzeTeam, bst, canUse, TYPE_LABELS, TYPES } from '@/lib/engine';
 import { GAMES } from '@/lib/games';
+import { getPokemonVisual } from '@/lib/pokemon-visual';
 import {
   ArrowRight,
   ArrowUpRight,
@@ -81,7 +82,7 @@ export function Dashboard() {
     if (highlights.length >= 6) break;
     if (!highlights.includes(p)) highlights.push(p);
   }
-  const hero = catalog.find((p) => p.id === 448);
+  const hero = catalog.find((p) => p.id === 6);
   const saves = personal?.teams.filter((t) => t.gameId === game) ?? [];
   const summaryTeam = saves[0];
   const summaryMembers =
@@ -114,7 +115,7 @@ export function Dashboard() {
         }
       />
       <div className="hero-grid">
-        <section className="hero-main">
+        <section className="hero-main" style={hero ? getPokemonVisual(hero).style : undefined}>
           <div className="hero-text">
             <h2>
               Seu instinto. Uma estratégia <em>melhor.</em>
@@ -146,12 +147,16 @@ export function Dashboard() {
             </div>
           </div>
           <div className="hero-art">
+            <div className="dashboard-art-ground" aria-hidden="true" />
+            <span className="dashboard-art-number" aria-hidden="true">
+              006
+            </span>
             {hero && <PokemonImage pokemon={hero} size={440} priority />}
             <div className="hero-pokemon-label">
               <Layers3 size={18} />
               <div>
-                <b>Lucario</b>
-                <small>Pokédex #0448</small>
+                <b>Charizard</b>
+                <small lang="ja">リザードン · #006</small>
               </div>
             </div>
           </div>
@@ -199,6 +204,7 @@ export function Dashboard() {
             <button
               key={g.id}
               className={`game-card ${game === g.id ? 'game-card-active' : ''}`}
+              aria-pressed={game === g.id}
               style={{ '--game-color': g.color } as React.CSSProperties}
               onClick={() => setGame(g.id)}
             >

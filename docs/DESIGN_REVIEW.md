@@ -1,4 +1,6 @@
-# Revisão visual do Pokétactics
+# Revisão visual anterior do Pokétactics
+
+Registro histórico da identidade de 17/10/2026. O sistema atual está em [DESIGN.md](../DESIGN.md), com cobertura e validação Type Study em [type-study/REVIEW.md](type-study/REVIEW.md).
 
 Revisão concluída em 17/10/2026. Tema escuro preservado, com destaque verde menta autorizado pelo usuário. A direção e os tokens estão em [DESIGN.md](../DESIGN.md).
 

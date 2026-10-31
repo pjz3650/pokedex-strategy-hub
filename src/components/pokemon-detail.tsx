@@ -34,6 +34,8 @@ import { SectionHeading } from './dashboard-catalog';
 import { EmptyState, PokemonImage, StatBars, StatsRadar, TypeBadge } from './pokemon-ui';
 import { api, useHub, type SavedBuild } from './providers';
 import { Button } from './ui/button';
+import { PokemonHero } from './pokemon-hero';
+import { getPokemonVisual } from '@/lib/pokemon-visual';
 export function useDetail(id: number | undefined, game: GameId) {
   const [detail, setDetail] = useState<PokemonDetail | null>(null);
   const [loading, setLoading] = useState(false);
@@ -110,6 +112,8 @@ export function DetailPage({ id }: { id: number }) {
       ? detail.forms.filter((form) => form.kind === 'mega' && canUse(form, game))
       : [];
   const compatible = canUse(p, game);
+  const visual = getPokemonVisual(p);
+  const focusMoves = compatible ? recommendBuild(p, detail.moves, game).moves : [];
   function add() {
     if (!compatible) {
       notify('Este Pokémon não está disponível no jogo selecionado.');
@@ -129,85 +133,54 @@ export function DetailPage({ id }: { id: number }) {
     notify(`${p.name} adicionado ao rascunho da equipe.`);
   }
   return (
-    <div>
+    <div className="pokemon-detail-page" style={visual.style}>
       <Link className="back-link" href="/pokedex">
         <ArrowLeft size={15} /> Voltar à Pokédex
       </Link>
-      <div className="detail-header">
-        <div
-          className="detail-portrait"
-          style={{ '--poke-color': `var(--${p.types[0]}, #aacd91)` } as React.CSSProperties}
-        >
-          <div className="portrait-ring" />
-          <span className="portrait-number">{String(p.speciesId).padStart(3, '0')}</span>
-          <PokemonImage key={p.id} pokemon={p} size={300} priority />
-          {p.kind === 'mega' && <span className="outline-tag">TRANSFORMAÇÃO TEMPORÁRIA</span>}
+      <PokemonHero pokemon={p} genus={detail.genus ?? null}>
+        <div className="detail-game-options">
+          {Object.values(GAMES).map((g) => (
+            <button
+              disabled={!canUse(p, g.id)}
+              title={
+                !canUse(p, g.id) ? 'Disponibilidade desta forma não verificada neste jogo' : g.name
+              }
+              className={game === g.id ? 'active' : ''}
+              onClick={() => setGame(g.id)}
+              key={g.id}
+            >
+              {canUse(p, g.id) && game === g.id && <Check size={13} />} {g.short}
+            </button>
+          ))}
         </div>
-        <div className="detail-intro">
-          <div className="eyebrow">
-            POKÉDEX NACIONAL <span /> #{String(p.speciesId).padStart(4, '0')}
-          </div>
-          <h1>{p.name}</h1>
-          <p>
-            {detail.genus ?? 'Classificação não verificada'} <span>·</span> Geração {p.generation}
-          </p>
-          <div className="type-row">
-            {p.types.map((t) => (
-              <TypeBadge key={t} type={t} />
-            ))}
-          </div>
-          <div className="detail-measurements">
-            <div>
-              <small>ALTURA</small>
-              <b>
-                {detail.height ?? '—'} <span>m</span>
-              </b>
-            </div>
-            <div>
-              <small>PESO</small>
-              <b>
-                {detail.weight ?? '—'} <span>kg</span>
-              </b>
-            </div>
-            <div>
-              <small>ATRIBUTOS BASE</small>
-              <b>
-                {bst(p.stats)} <span>BST</span>
-              </b>
-            </div>
-            <div>
-              <small>FUNÇÃO ESTIMADA</small>
-              <b className="role-text">{role(p)}</b>
-            </div>
-          </div>
-          <div className="detail-game-options">
-            {Object.values(GAMES).map((g) => (
-              <button
-                disabled={!canUse(p, g.id)}
-                title={
-                  !canUse(p, g.id)
-                    ? 'Disponibilidade desta forma não verificada neste jogo'
-                    : g.name
-                }
-                className={game === g.id ? 'active' : ''}
-                onClick={() => setGame(g.id)}
-                key={g.id}
-              >
-                {canUse(p, g.id) && game === g.id && <Check size={13} />} {g.short}
-              </button>
-            ))}
-          </div>
-          <div className="button-row">
-            <Button onClick={add} disabled={!compatible}>
-              <Plus size={16} /> Adicionar à equipe
-            </Button>
-            <Button variant="secondary" asChild>
-              <Link href={`/comparador?pokemon=${p.id}`}>
-                <Layers3 size={16} /> Comparar
-              </Link>
-            </Button>
-          </div>
+        <div className="button-row">
+          <Button onClick={add} disabled={!compatible}>
+            <Plus size={16} /> Adicionar à equipe
+          </Button>
+          <Button variant="secondary" asChild>
+            <Link href={`/comparador?pokemon=${p.id}`}>
+              <Layers3 size={16} /> Comparar
+            </Link>
+          </Button>
         </div>
+      </PokemonHero>
+      <div className="detail-facts">
+        <span>
+          <small>ALTURA</small>
+          <b>{detail.height ?? '—'} m</b>
+        </span>
+        <span>
+          <small>PESO</small>
+          <b>{detail.weight ?? '—'} kg</b>
+        </span>
+        <span>
+          <small>ATRIBUTOS BASE</small>
+          <b>{bst(p.stats)} BST</b>
+        </span>
+        <span>
+          <small>FUNÇÃO ESTIMADA</small>
+          <b>{role(p)}</b>
+        </span>
       </div>
       {!compatible ? (
         <Notice>
@@ -216,7 +189,31 @@ export function DetailPage({ id }: { id: number }) {
         </Notice>
       ) : (
         <>
-          <div className="tabs" role="tablist" aria-label="Seções do Pokémon">
+          <div
+            className="tabs"
+            role="tablist"
+            aria-label="Seções do Pokémon"
+            onKeyDown={(event) => {
+              const tabs = [
+                ...event.currentTarget.querySelectorAll<HTMLButtonElement>('[role="tab"]'),
+              ];
+              const index = tabs.indexOf(document.activeElement as HTMLButtonElement);
+              const next =
+                event.key === 'ArrowRight'
+                  ? (index + 1) % tabs.length
+                  : event.key === 'ArrowLeft'
+                    ? (index + tabs.length - 1) % tabs.length
+                    : event.key === 'Home'
+                      ? 0
+                      : event.key === 'End'
+                        ? tabs.length - 1
+                        : -1;
+              if (next < 0) return;
+              event.preventDefault();
+              tabs[next].focus();
+              tabs[next].click();
+            }}
+          >
             {[
               ['overview', 'Visão geral'],
               ['moves', 'Movimentos'],
@@ -225,6 +222,8 @@ export function DetailPage({ id }: { id: number }) {
             ].map(([key, label]) => (
               <button
                 role="tab"
+                id={`pokemon-tab-${key}`}
+                tabIndex={tab === key ? 0 : -1}
                 aria-selected={tab === key}
                 aria-controls="pokemon-panel"
                 key={key}
@@ -235,7 +234,12 @@ export function DetailPage({ id }: { id: number }) {
               </button>
             ))}
           </div>
-          <div role="tabpanel" id="pokemon-panel">
+          <div
+            role="tabpanel"
+            id="pokemon-panel"
+            aria-labelledby={`pokemon-tab-${tab}`}
+            tabIndex={0}
+          >
             {tab === 'overview' && (
               <>
                 <div className="two-column detail-stats">
@@ -250,14 +254,41 @@ export function DetailPage({ id }: { id: number }) {
                       <b>{bst(p.stats)}</b>
                     </div>
                   </section>
-                  <section className="panel">
+                  <section className="panel focus-moves">
                     <SectionHeading
-                      title="Perfil de atributos"
-                      caption="A distribuição ajuda a entender o papel na equipe."
+                      title="Movimentos em foco"
+                      caption={`Sugestão equilibrada · ${GAMES[game].short}`}
                     />
-                    <StatsRadar stats={p.stats} />
+                    <div className="focus-move-list">
+                      {focusMoves.map((move) => (
+                        <div key={move.id}>
+                          <TypeBadge type={move.type} />
+                          <b>{move.name}</b>
+                          <span>
+                            {move.power ?? '—'}
+                            <small>PODER</small>
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                    <button
+                      className="text-link"
+                      onClick={() => {
+                        setTab('moves');
+                        document.getElementById('pokemon-tab-moves')?.focus();
+                      }}
+                    >
+                      Explorar {detail.moves.length} movimentos <ArrowUpRight size={14} />
+                    </button>
                   </section>
                 </div>
+                <section className="panel attribute-profile">
+                  <SectionHeading
+                    title="Perfil de atributos"
+                    caption="Distribuição dos valores base, sem modificadores de batalha."
+                  />
+                  <StatsRadar stats={p.stats} />
+                </section>
                 {megaForms.length > 0 && (
                   <section className="panel mega-preview-panel">
                     <SectionHeading

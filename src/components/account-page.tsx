@@ -238,16 +238,16 @@ export function AccountPage() {
             <p>Tenha um espaço para organizar tudo que você está construindo.</p>
             <ul>
               <li>
-                <Check size={16} /> Equipes e builds salvas no PostgreSQL
+                <Check size={16} /> Equipes e builds salvas na sua conta
               </li>
               <li>
                 <Check size={16} /> Favoritos vinculados à sua conta
               </li>
               <li>
-                <Check size={16} /> Senhas protegidas com hashing bcrypt
+                <Check size={16} /> Senhas protegidas
               </li>
               <li>
-                <Check size={16} /> Análise sem consumir tokens de IA
+                <Check size={16} /> Análises com critérios explicáveis
               </li>
             </ul>
           </section>
@@ -390,8 +390,8 @@ export function AccountPage() {
               )
             )}
             <p className="fine-print">
-              <ShieldCheck size={13} /> Login é necessário apenas para persistência pessoal. A
-              Pokédex e as análises são públicas.
+              <ShieldCheck size={13} /> Entre para salvar suas estratégias. A Pokédex e as análises
+              são públicas.
             </p>
           </section>
         </div>

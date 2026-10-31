@@ -47,6 +47,10 @@ SOFTWARE.
 
 Fortelle/pokemon-learnsets e Kaphotics/PLA Move Data não informam uma licença editorial explícita nos materiais consultados. A importação usa fatos técnicos com atribuição e hashes, sem copiar descrições de movimentos ou imagens. A procedência e as limitações estão em docs/FONTES.md.
 
-## Dependências do aplicativo
+## Fontes Type Study
+
+Barlow e Barlow Condensed, de Jeremy Tribby, e Noto Sans JP, do projeto Noto, usam SIL Open Font License 1.1. Arquivos locais e textos integrais da licença estão em `public/fonts`. Origem: famílias `ofl/barlow`, `ofl/barlowcondensed` e `ofl/notosansjp` do repositório oficial [google/fonts](https://github.com/google/fonts). O subconjunto de Noto Sans JP contém os caracteres dos nomes oficiais presentes no snapshot e da assinatura do produto. Essas licenças não se aplicam às imagens Pokémon.
+
+## Bibliotecas
 
 As dependências mantêm suas próprias licenças em `node_modules`; consulte o lockfile para as versões exatas. O componente Button usa o padrão shadcn/ui (MIT), com Radix UI, class-variance-authority e classes locais.
